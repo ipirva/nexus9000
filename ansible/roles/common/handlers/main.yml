@@ -1,0 +1,11 @@
+---
+- name: notify using spark
+  local_action:
+    module: cisco_spark
+    recipient_type: roomId
+    recipient_id: "{{ spark_room_id }}"
+    message_type: text
+    personal_token: "{{ spark_token }}"
+    message: "{{ send_msg }}"
+  when: trigger_msg|default(False)|bool
+...

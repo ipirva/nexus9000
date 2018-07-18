@@ -1,0 +1,6 @@
+---
+- name: Generate Overlay variables
+  template: >
+    src=main.j2
+    dest=host_vars/{{inventory_hostname}}/generated_overlay_variables.yml
+  run_once: true

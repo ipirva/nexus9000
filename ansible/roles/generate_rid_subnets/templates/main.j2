@@ -1,0 +1,7 @@
+rid:
+{% for i in range(0, generate_rid.nbr_networks ) %}
+{% set network = generate_rid.network_pool | ipsubnet(generate_rid.network_size, i) %}
+{% if generate_rid.network_size == 32 %}
+  {{ i }}: { "ip": {{ network | ipaddr('address') }}, "mask": {{ generate_rid.network_size|string }} }
+{% endif %}
+{% endfor %}

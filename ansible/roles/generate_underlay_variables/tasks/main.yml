@@ -1,0 +1,6 @@
+---
+- name: Generate Underlay variables
+  template: >
+    src=main.j2
+    dest=host_vars/{{inventory_hostname}}/generated_underlay_variables.yml
+  run_once: true

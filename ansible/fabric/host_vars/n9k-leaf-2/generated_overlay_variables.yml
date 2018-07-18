@@ -1,0 +1,12 @@
+overlay:
+  bgpparameters:
+    asn: 65500
+    routerid:        10.10.10.3       
+    updatesource: Loopback0
+  bgpneighbors:
+    neighbor:
+      - 10.10.10.0
+  overlay:
+    anycastgwmac: aaaa.aaaa.aaaa
+    nvesourceifx: Loopback1
+    nveholddown: 60

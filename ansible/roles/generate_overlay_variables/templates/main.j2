@@ -1,0 +1,30 @@
+{% set leafs = groups['leaf'] + groups['bleaf'] %}
+overlay:
+  bgpparameters:
+    asn: {{ bgp.asn }}
+    routerid:{% for id,host in nodes.iteritems() %} {% if host == inventory_hostname %} {{ rid[id]['ip'] }} {% endif %} {% endfor %} 
+    updatesource: {{ bgp.updatesource }}
+  bgpneighbors:
+{% for id,host in nodes.iteritems() %}
+{% if inventory_hostname == host %}
+    neighbor:
+{% if host in groups["spine"] %}
+{% for id,host in nodes.iteritems() %}
+{% if host in leafs %}
+      - {{ rid[id]['ip'] }}
+{% endif %}
+{% endfor %}
+{% endif %}
+{% if host in leafs %}
+{% for id,host in nodes.iteritems() %}
+{% if host in groups["spine"] %}
+      - {{ rid[id]['ip'] }}
+{% endif %}
+{% endfor %}
+{% endif %}
+{% endif %}
+{% endfor %}
+  overlay:
+    anycastgwmac: {{ overlay.anycastgwmac }}
+    nvesourceifx: {{ overlay.nvesourceifx }}
+    nveholddown: {{ overlay.nveholddown }}

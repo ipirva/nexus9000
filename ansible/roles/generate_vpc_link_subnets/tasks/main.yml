@@ -1,0 +1,6 @@
+---
+- name: Generate VPC links Subnets
+  template: >
+    src=main.j2
+    dest=group_vars/all/generated_vpc_link_subnets.yml
+  #run_once: true

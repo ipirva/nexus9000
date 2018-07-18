@@ -1,0 +1,6 @@
+---
+- name: Generate P2P Subnets
+  template: >
+    src=main.j2
+    dest=group_vars/all/generated_p2p_subnets.yml
+  run_once: true

@@ -1,0 +1,25 @@
+vpc:
+  domain: 1000 
+  priority: 200
+  system_priority: 200
+  po_id: 4096
+  po_mode: active
+  vrf: vpcpl
+  peer_gw: True
+  auto_recovery: True
+  delay_restore: 150
+ 
+  vpc_src: 192.168.0.1
+  vpc_src_mask: 30
+ 
+  vpc_dst: 192.168.0.2
+  vpc_peer: n9k-leaf-2
+  vlan: 123
+  vpc_interfaces:
+    - Ethernet1/51
+    - Ethernet1/52
+  nve_loopbacks:
+    - interface: Loopback1
+      ipaddress_secondary: 10.154.154.0
+      mask: 32
+

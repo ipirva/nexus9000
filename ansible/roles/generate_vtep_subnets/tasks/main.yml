@@ -1,0 +1,6 @@
+---
+- name: Generate VTEP Subnets
+  template: >
+    src=main.j2
+    dest=group_vars/all/generated_vtep_subnets.yml
+  run_once: true

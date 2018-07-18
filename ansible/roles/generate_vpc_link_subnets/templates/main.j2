@@ -1,0 +1,9 @@
+vpc_link:
+{% for i in range(0, generate_vpc_link_subnets.nbr_networks ) %}
+{% set network = generate_vpc_link_subnets.network_pool | ipsubnet(generate_vpc_link_subnets.network_size, i) %}
+{% if generate_vpc_link_subnets.network_size == 31 %}
+  {{ i }}: { 0: { "ip": {{ network | ipaddr('network') }}, "mask": {{ generate_vpc_link_subnets.network_size }} },  1: { "ip": {{ network| ipaddr(1) | ipaddr('address') }}, "mask": {{ generate_vpc_link_subnets.network_size }} } }
+{% else %}
+  {{ i }}: { 0: { "ip": {{ network | ipaddr(1) | ipaddr('address') }}, "mask": {{ generate_vpc_link_subnets.network_size }} },   1: { "ip": {{ network | ipaddr(2) | ipaddr('address') }}, "mask": {{ generate_vpc_link_subnets.network_size }} } }
+{% endif %}
+{% endfor %}

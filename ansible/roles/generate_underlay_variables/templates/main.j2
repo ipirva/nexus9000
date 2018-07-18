@@ -1,0 +1,55 @@
+{% set leafs = groups['leaf'] + groups['bleaf'] %}
+underlay:
+  ospf:
+    routerid: {{ ospf.routerid }}
+    process: {{ ospf.process }}
+    area: {{ ospf.area }}
+    cost: {{ ospf.cost }}
+  pim:
+    interface: {{ pim.interface }}
+    address: {{ pim.address }}
+    mask: {{ pim.mask }}
+    description: {{ pim.description }}
+    grouplist: {{ pim.grouplist }}
+{% for host in leafs %}
+{% if inventory_hostname == host %}
+  role: leaf
+{% endif %}
+{% endfor %}
+{% for host in groups["spine"] %}
+{% if inventory_hostname == host %}
+  role: spine
+{% endif %}
+{% endfor %}
+  loopbacks:
+    - interface: Loopback0
+{% for id,host in nodes.iteritems() %}
+{% if inventory_hostname == host %}
+      ipaddress: {{ rid[id]["ip"] }}
+      mask: {{ rid[id]["mask"] }}
+      description: loopback_underlay
+{% endif %}
+{% endfor %}
+{% if inventory_hostname in leafs %}
+  nve_loopbacks:
+    - interface: Loopback1
+{% endif %}
+{% for id,host in nodes.iteritems() %}
+{% if inventory_hostname == host and host in leafs %}
+      ipaddress: {{ vtep[id]["ip"] }}
+      mask: {{ vtep[id]["mask"] }}
+      description: loopback_underlay
+{% endif %}
+{% endfor %}
+  interfaces:
+{% for key, value in topology.iteritems() %}
+{% if inventory_hostname == key %}
+{% for id, peers in value.iteritems() %}
+    - interface: {{ peers.local_ifx }}
+      description: to_{{ peers.peer.lower() }}_{{ peers.remote_ifx.lower() }}
+      ipaddress: {{ p2p[peers.linkid][peers.portid]["ip"] }}
+      mask: {{ p2p[peers.linkid][peers.portid]["mask"] }}
+      mtu: 9216
+{% endfor %}
+{% endif %}
+{% endfor %}

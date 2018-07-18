@@ -1,0 +1,25 @@
+---
+nxapi:
+  username: admin
+  password: "{{ lookup('env','NXAPI_PSW') }}"
+  transport: nxapi
+  use_ssl: yes
+  validate_certs: no
+  timeout: 15
+cli:
+  ssh_keyfile: "{{ lookup('env','SSH_ANSIBLE_KEYDIR') }}/provisioning.priv"
+  username: provisioning
+  transport: cli
+  timeout: 15
+bash:
+  ssh_keyfile: "{{ lookup('env','SSH_ANSIBLE_KEYDIR') }}/provisioning.priv"
+  username: provisioning_bash
+  transport: cli
+  timeout: 15
+
+spark_room_id: "{{ lookup('env','SPARK_ROOM_ID') }}"
+spark_token: "{{ lookup('env','SPARK_TOKEN') }}"
+
+scripts_dir: /root/ansible/scripts
+
+...

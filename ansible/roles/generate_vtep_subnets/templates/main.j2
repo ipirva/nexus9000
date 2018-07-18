@@ -1,0 +1,7 @@
+vtep:
+{% for i in range(0, generate_vtep.nbr_networks ) %}
+{% set network = generate_vtep.network_pool | ipsubnet(generate_vtep.network_size, i) %}
+{% if generate_vtep.network_size == 32 %}
+  {{ i }}: { "ip": {{ network | ipaddr('address') }}, "mask": {{ generate_vtep.network_size|string }} }
+{% endif %}
+{% endfor %}

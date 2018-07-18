@@ -1,0 +1,217 @@
+---
+- name: Configure VPC
+  hosts: [leaf,bleaf]
+  connection: local
+  gather_facts: no
+  roles:
+    - common
+    #- configure_loopbacks
+  vars:
+    playbook_name: "Configure vPC"
+  tasks:
+    - name: Create checkpoint
+      nxos_rollback:
+        checkpoint_file: checkpoint.cfg
+        provider: "{{ nxapi }}"
+      tags:
+        - create_checkpoint
+    - block:
+      - name: Install feature VPC
+        nxos_feature:
+          feature: vpc
+          state: enabled
+          provider: "{{ nxapi }}"
+        when: vpc.domain is defined
+        tags:
+          - install_feature_vpc
+          - feature
+      - name: Create the needed VRF
+        nxos_vrf:
+          name: "{{ vpc.vrf }}"
+          admin_state: up
+          state: present
+          provider: "{{ nxapi }}"
+        when: vpc.domain is defined
+        tags:
+          - create_vrf_vpc_pl
+          - vrf
+      - name: Configure NVE1 Loopback with secondary IPv4
+        nxos_config:
+          lines:
+            - ip address {{ item["ipaddress_secondary"] }}/{{ item["mask"] }} secondary
+          parents: interface {{ item["interface"] }}
+          provider: "{{ nxapi }}"
+        when: vpc.domain is defined
+        with_items: "{{ vpc['nve_loopbacks'] }}"
+        tags:
+          - configure_nve1_loopback1_secondary
+          - nve1_loopback1_secondary
+      - name: Configure VPC
+        nxos_vpc:
+          domain: "{{ vpc.domain }}"
+          role_priority: "{{ vpc.priority }}"
+          system_priority: "{{ vpc.system_priority }}"
+          pkl_vrf: "{{ vpc.vrf }}"
+          pkl_dest: "{{ vpc.vpc_dst }}"
+          pkl_src: "{{ vpc.vpc_src }}"
+          peer_gw: "{{ vpc.peer_gw }}"
+          delay_restore: "{{ vpc.delay_restore }}"
+          auto_recovery: "{{ vpc.auto_recovery }}"
+          state: present
+          provider: "{{ nxapi }}"
+        when: vpc.domain is defined
+        tags:
+          - configure_vpc
+          - vpc
+      - name: Configure VPC extra parameters
+        nxos_config:
+          lines:
+            - ip arp synchronize
+            - ipv6 nd synchronize
+            - layer3 peer-router
+          parents: vpc domain {{ vpc.domain }}
+          provider: "{{ nxapi }}"
+        when: vpc.domain is defined
+        tags:
+          - configure_vpc
+          - vpc
+#      - name: Create VPC interface (PO) and assign ETH
+#        nxos_portchannel:
+#          group: "{{ vpc.po_id }}"
+#          mode: "{{ vpc.po_mode }}"
+#          state: present
+#          members:
+#            - "{{ item }}"
+#          provider: "{{ nxapi }}"
+#        when: vpc.domain is defined
+#        with_items: "{{ vpc['vpc_interfaces'] }}"
+#        tags:
+#          - configure_vpc_po
+#          - vpc_po
+#      - name: Configure VPC interface (PO) description
+#        nxos_interface:
+#          name: "port-channel{{ vpc.po_id }}"
+#          description: 'vpc_pl_to_{{ vpc.vpc_peer }}'
+#          admin_state: up
+#          provider: "{{ nxapi }}"
+#        when: vpc.domain is defined
+#        tags:
+#          - configure_vpc_po
+#          - vpc_po
+      - name: Create VPC interface (PO) and assign ETH
+        nxos_linkagg:
+          group: "{{ vpc.po_id }}"
+          mode: "{{ vpc.po_mode }}"
+          state: present
+          members: "{{ vpc['vpc_interfaces'] }}"     
+          provider: "{{ nxapi }}"
+        when: vpc.domain is defined
+#        with_items: "{{ vpc['vpc_interfaces'] }}"
+        tags:
+          - configure_vpc_po
+          - vpc_po
+      - name: Configure VPC interface (PO)
+        nxos_vpc_interface:
+          portchannel: "{{ vpc.po_id }}"
+          peer_link: True
+          provider: "{{ nxapi }}"
+          state: present
+        when: vpc.domain is defined
+        tags:
+          - configure_vpc_po
+          - vpc_po
+      - name: Configure VPC PL VLAN on VPC PO
+        nxos_l2_interface:
+          name: "port-channel {{ vpc.po_id }}"
+          mode: trunk
+          trunk_allowed_vlans: "{{ vpc.vlan }}"
+          state: present
+          provider: "{{ nxapi }}"
+        when: vpc.domain is defined
+        tags:
+          - configure_l2_vpc_po
+          - vpc_po_trunk
+      - name: Configure VPC interface (ETH) description
+        nxos_interface:
+          name: "{{ item }}"
+          description: 'vpc_pl_to_{{ vpc.vpc_peer }}'
+          admin_state: up
+          provider: "{{ nxapi }}"
+        when: vpc.domain is defined
+        with_items: "{{ vpc['vpc_interfaces'] }}"
+        tags:
+          - configure_l2_vpc_eth
+          - vpc_eth
+      - name: Create L2 VLAN VPC PL
+        nxos_vlan:
+          vlan_id: "{{ vpc.vlan }}"
+          admin_state: up
+          name: vpc_vpl
+          provider: "{{ nxapi }}"
+        when: vpc.domain is defined
+        tags:
+          - configure_l2_vpc_vpl_vlan
+          - vpc_vpl_vlan_l2
+      - name: Create L3 VLAN VPC PL
+        nxos_interface:
+          name: "Vlan{{ vpc.vlan }}"
+          admin_state: up
+          state: present
+          provider: "{{ nxapi }}"
+        when: vpc.domain is defined
+        tags:
+          - configure_l3_vpc_vpl_vlan
+          - vpc_vpl_vlan_l3
+      - name: Configure L3 VLAN VPC PL in VRF
+        nxos_vrf_interface:
+          vrf: "{{ vpc.vrf }}"
+          interface: "Vlan{{ vpc.vlan }}"
+          state: present
+          provider: "{{ nxapi }}"
+        when: vpc.domain is defined
+        tags:
+          - configure_l3_vpc_vpl_vlan
+          - vpc_vpl_vlan_l3
+      #- name: Configure L3 VLAN VPC PL IPv4
+      #  nxos_l3_interface:
+      #    name: "Vlan{{ vpc.vlan }}"
+      #    ipv4: "{{ vpc.vpc_src }}/{{ vpc.vpc_src_mask }}"
+      #    state: present
+      #    provider: "{{ nxapi }}"
+      #  when: vpc.domain is defined
+      #  tags:
+      #    - configure_l3_vpc_vpl_vlan
+      #    - vpc_vpl_vlan_l3
+      - name: Configure L3 VLAN VPC PL IPv4
+        nxos_ip_interface:
+          interface: "Vlan{{ vpc.vlan }}"
+          version: v4
+          addr: "{{ vpc.vpc_src }}"
+          mask: "{{ vpc.vpc_src_mask }}"
+          state: present
+          provider: "{{ nxapi }}"
+        when: vpc.domain is defined
+        tags:
+          - configure_l3_vpc_vpl_vlan
+          - vpc_vpl_vlan_l3
+      - name: Configure L3 VLAN VPC PL IPv4
+        nxos_config:
+          lines:
+            - no autostate
+          parents: interface Vlan{{ vpc.vlan }}
+          provider: "{{ nxapi }}"
+        when: vpc.domain is defined
+        tags:
+          - configure_l3_vpc_vpl_vlan
+          - vpc_vpl_vlan_l3
+      rescue:
+        - set_fact:
+            trigger_msg: True
+            send_msg: "{{ playbook_name }} -  error configure on {{ inventory_hostname }}"
+          changed_when: True
+          notify: notify using spark
+        - name: Rollback to checkpoint
+          nxos_rollback:
+            rollback_to: checkpoint.cfg
+            provider: "{{ nxapi }}"
+...

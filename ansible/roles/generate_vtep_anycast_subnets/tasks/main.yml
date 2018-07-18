@@ -1,0 +1,6 @@
+---
+- name: Generate VTEP Anycast Subnets
+  template: >
+    src=main.j2
+    dest=group_vars/all/generated_vtep_anycast_subnets.yml
+  #run_once: true

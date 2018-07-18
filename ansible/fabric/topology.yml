@@ -1,0 +1,94 @@
+nodes:
+  0: n9k-spine-1
+  1: n9k-bleaf-1
+  2: n9k-leaf-1
+  3: n9k-leaf-2
+  4: n9k-leaf-3
+  5: n9k-leaf-4
+vpc_pairs:
+  0:
+  - n9k-leaf-1
+  - n9k-leaf-2
+  1:
+  - n9k-leaf-3
+  - n9k-leaf-4
+vpc_interfaces:
+  n9k-leaf-1:
+  - Eth1/51
+  - Eth1/52
+  n9k-leaf-2:
+  - Eth1/51
+  - Eth1/52
+  n9k-leaf-3:
+  - Eth1/51
+  - Eth1/49
+  n9k-leaf-4:
+  - Eth1/51
+  - Eth1/49
+topology:
+  n9k-bleaf-1:
+    0:
+      linkid: 4
+      local_ifx: Eth1/49
+      peer: n9k-spine-1
+      portid: 1
+      remote_ifx: Ethernet2/1
+  n9k-leaf-1:
+    0:
+      linkid: 0
+      local_ifx: Eth1/49
+      peer: n9k-spine-1
+      portid: 1
+      remote_ifx: Ethernet2/2
+  n9k-leaf-2:
+    0:
+      linkid: 1
+      local_ifx: Eth1/49
+      peer: n9k-spine-1
+      portid: 1
+      remote_ifx: Ethernet2/3
+  n9k-leaf-3:
+    0:
+      linkid: 2
+      local_ifx: Eth1/54
+      peer: n9k-spine-1
+      portid: 1
+      remote_ifx: Ethernet2/11
+  n9k-leaf-4:
+    0:
+      linkid: 3
+      local_ifx: Eth1/54
+      peer: n9k-spine-1
+      portid: 1
+      remote_ifx: Ethernet2/12
+  n9k-spine-1:
+    0:
+      linkid: 0
+      local_ifx: Eth2/2
+      peer: n9k-leaf-1
+      portid: 0
+      remote_ifx: Ethernet1/49
+    1:
+      linkid: 1
+      local_ifx: Eth2/3
+      peer: n9k-leaf-2
+      portid: 0
+      remote_ifx: Ethernet1/49
+    2:
+      linkid: 2
+      local_ifx: Eth2/11
+      peer: n9k-leaf-3
+      portid: 0
+      remote_ifx: Ethernet1/54
+    3:
+      linkid: 3
+      local_ifx: Eth2/12
+      peer: n9k-leaf-4
+      portid: 0
+      remote_ifx: Ethernet1/54
+    4:
+      linkid: 4
+      local_ifx: Eth2/1
+      peer: n9k-bleaf-1
+      portid: 0
+      remote_ifx: Ethernet1/49
