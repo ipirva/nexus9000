@@ -43,7 +43,7 @@
     pim:
       interface: Loopback254
       address: 10.254.254.254
-      mask: 30
+      mask: 32
       description: pim_rp_anycast
       grouplist: 233.0.0.0/24 
   roles:

@@ -11,7 +11,7 @@
     generate_vpc_link_subnets:
       nbr_networks: 10
       network_size: 30
-      network_pool: 192.168.0.0/24
+      network_pool: 192.168.168.0/24
   roles:
     - generate_vtep_anycast_subnets
     - generate_vpc_link_subnets
@@ -26,10 +26,10 @@
       domain: 1000
       priority: 200 
       system_priority: 200
+      vlan: 123
       po_id: 4096
       po_mode: active
-      vrf: vpcpl
-      vlan: 123
+      vrf: management
       peer_gw: true
       auto_recovery: true
       delay_restore: 150

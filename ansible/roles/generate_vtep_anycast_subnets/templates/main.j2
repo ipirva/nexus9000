@@ -3,5 +3,7 @@ vtep_anycast:
 {% set network = generate_vtep_anycast_subnets.network_pool | ipsubnet(generate_vtep_anycast_subnets.network_size, i) %}
 {% if generate_vtep_anycast_subnets.network_size == 32 %}
   {{ i }}: { "ip": {{ network | ipaddr('address') }}, "mask": {{ generate_vtep_anycast_subnets.network_size|string }} }
+{% else %}
+  {{ i }}: { "ip": {{ network | ipaddr(1) | ipaddr('address') }}, "mask": {{ generate_vtep_anycast_subnets.network_size|string }} }
 {% endif %}
 {% endfor %}

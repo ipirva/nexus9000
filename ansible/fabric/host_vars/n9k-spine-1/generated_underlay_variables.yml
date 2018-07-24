@@ -19,26 +19,26 @@ underlay:
   interfaces:
     - interface: Eth2/2
       description: to_n9k-leaf-1_ethernet1/49
-      ipaddress: 10.1.1.1
-      mask: 30
+      ipaddress: 10.1.1.0
+      mask: 31
       mtu: 9216
     - interface: Eth2/3
       description: to_n9k-leaf-2_ethernet1/49
-      ipaddress: 10.1.1.5
-      mask: 30
+      ipaddress: 10.1.1.2
+      mask: 31
       mtu: 9216
     - interface: Eth2/11
       description: to_n9k-leaf-3_ethernet1/54
-      ipaddress: 10.1.1.9
-      mask: 30
+      ipaddress: 10.1.1.4
+      mask: 31
       mtu: 9216
     - interface: Eth2/12
       description: to_n9k-leaf-4_ethernet1/54
-      ipaddress: 10.1.1.13
-      mask: 30
+      ipaddress: 10.1.1.6
+      mask: 31
       mtu: 9216
     - interface: Eth2/1
       description: to_n9k-bleaf-1_ethernet1/49
-      ipaddress: 10.1.1.17
-      mask: 30
+      ipaddress: 10.1.1.8
+      mask: 31
       mtu: 9216

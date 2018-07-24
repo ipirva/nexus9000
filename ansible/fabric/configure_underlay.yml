@@ -145,6 +145,21 @@
         tags:
           - configure_ospf_underlay
           - ospf
+      - name: Confgure OSPF Underlay - NVE Loopback
+        nxos_interface_ospf:
+          interface: "{{ item['interface'] }}"
+          ospf: "{{ underlay['ospf']['process'] }}"
+          area: "{{ underlay['ospf']['area'] }}"
+          cost: default
+          passive_interface: false
+          state: present
+          provider: "{{ nxapi }}"
+        when: inventory_hostname in groups.leaf or inventory_hostname in groups.bleaf
+        with_items:
+          - "{{ underlay['nve_loopbacks'] }}"
+        tags:
+          - configure_ospf_underlay
+          - ospf
       - name: Confgure OSPF PIM Anycast
         nxos_interface_ospf:
           interface: "{{ underlay['pim']['interface'] }}"
@@ -176,6 +191,17 @@
         with_items:
           - "{{ underlay['interfaces'] }}"
           - "{{ underlay['loopbacks'] }}"
+        tags:
+          - configure_pim_on_underlay_interfaces
+          - pim
+      - name: Configure PIM on NVE interface Loopback
+        nxos_pim_interface:
+          interface: "{{ item['interface'] }}"
+          sparse: true
+          provider: "{{ nxapi }}"
+        when: inventory_hostname in groups.leaf or inventory_hostname in groups.bleaf
+        with_items:
+          - "{{ underlay['nve_loopbacks'] }}"
         tags:
           - configure_pim_on_underlay_interfaces
           - pim

@@ -16,14 +16,19 @@ vpc:
   delay_restore: {{ vpc.delay_restore }}
 {% for pointer in range(0,index) %}
 {% if peer[pointer] == inventory_hostname %} 
-  vpc_src: {{ vpc_link[vpcid][pointer]["ip"] }}
-  vpc_src_mask: {{ vpc_link[vpcid][pointer]["mask"] }}
+  vpc_src: {{ lookup('pipe', "cat /etc/hosts | grep " + inventory_hostname + " | awk '{print $1}'") }} 
 {% else %} 
-  vpc_dst: {{ vpc_link[vpcid][pointer]["ip"] }}
+  vpc_dst: {{ lookup('pipe', "cat /etc/hosts | grep " + peer[pointer] + " | awk '{print $1}'") }}
   vpc_peer: {{ peer[pointer] }}
 {% endif %}
 {% endfor %}
   vlan: {{ vpc.vlan }}
+{% for pointer in range(0,index) %}
+{% if peer[pointer] == inventory_hostname %}
+  vlan_underlay_ipv4: {{ vpc_link[vpcid][pointer]["ip"] }}
+  vlan_underlay_mask: {{ vpc_link[vpcid][pointer]["mask"] }}
+{% endif %}
+{% endfor %}
   vpc_interfaces:
 {% for vpc_interfaces in vpc_interfaces[inventory_hostname] %}
     - {{ vpc_interfaces|replace("Eth", "Ethernet") }}

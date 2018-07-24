@@ -25,16 +25,16 @@
         tags:
           - install_feature_vpc
           - feature
-      - name: Create the needed VRF
-        nxos_vrf:
-          name: "{{ vpc.vrf }}"
-          admin_state: up
-          state: present
-          provider: "{{ nxapi }}"
-        when: vpc.domain is defined
-        tags:
-          - create_vrf_vpc_pl
-          - vrf
+      #- name: Create the needed VRF
+      #  nxos_vrf:
+      #    name: "{{ vpc.vrf }}"
+      #    admin_state: up
+      #    state: present
+      #    provider: "{{ nxapi }}"
+      #  when: vpc.domain is defined
+      #  tags:
+      #    - create_vrf_vpc_pl
+      #    - vrf
       - name: Configure NVE1 Loopback with secondary IPv4
         nxos_config:
           lines:
@@ -69,6 +69,8 @@
             - ip arp synchronize
             - ipv6 nd synchronize
             - layer3 peer-router
+            - peer-gateway
+            - peer-switch
           parents: vpc domain {{ vpc.domain }}
           provider: "{{ nxapi }}"
         when: vpc.domain is defined
@@ -134,7 +136,7 @@
       - name: Configure VPC interface (ETH) description
         nxos_interface:
           name: "{{ item }}"
-          description: 'vpc_pl_to_{{ vpc.vpc_peer }}'
+          description: 'vpc_pl_to_{{ vpc.vpc_peer }}'
           admin_state: up
           provider: "{{ nxapi }}"
         when: vpc.domain is defined
@@ -142,16 +144,16 @@
         tags:
           - configure_l2_vpc_eth
           - vpc_eth
-      - name: Create L2 VLAN VPC PL
+      - name: Create L2 VLAN VPC Underlay
         nxos_vlan:
           vlan_id: "{{ vpc.vlan }}"
           admin_state: up
-          name: vpc_vpl
+          name: vpc_undelay
           provider: "{{ nxapi }}"
         when: vpc.domain is defined
         tags:
-          - configure_l2_vpc_vpl_vlan
-          - vpc_vpl_vlan_l2
+          - configure_l2_vpc_underlay_vlan
+          - vpc_underlay_vlan
       - name: Create L3 VLAN VPC PL
         nxos_interface:
           name: "Vlan{{ vpc.vlan }}"
@@ -160,50 +162,53 @@
           provider: "{{ nxapi }}"
         when: vpc.domain is defined
         tags:
-          - configure_l3_vpc_vpl_vlan
-          - vpc_vpl_vlan_l3
-      - name: Configure L3 VLAN VPC PL in VRF
-        nxos_vrf_interface:
-          vrf: "{{ vpc.vrf }}"
-          interface: "Vlan{{ vpc.vlan }}"
-          state: present
-          provider: "{{ nxapi }}"
-        when: vpc.domain is defined
-        tags:
-          - configure_l3_vpc_vpl_vlan
-          - vpc_vpl_vlan_l3
-      #- name: Configure L3 VLAN VPC PL IPv4
-      #  nxos_l3_interface:
-      #    name: "Vlan{{ vpc.vlan }}"
-      #    ipv4: "{{ vpc.vpc_src }}/{{ vpc.vpc_src_mask }}"
-      #    state: present
-      #    provider: "{{ nxapi }}"
-      #  when: vpc.domain is defined
-      #  tags:
-      #    - configure_l3_vpc_vpl_vlan
-      #    - vpc_vpl_vlan_l3
-      - name: Configure L3 VLAN VPC PL IPv4
+          - configure_l3_vpc_underlay_vlan
+          - vpc_underlay_vlan
+      - name: Configure L3 VLAN VPC Underlay IPv4
         nxos_ip_interface:
           interface: "Vlan{{ vpc.vlan }}"
           version: v4
-          addr: "{{ vpc.vpc_src }}"
-          mask: "{{ vpc.vpc_src_mask }}"
+          addr: "{{ vpc.vlan_underlay_ipv4 }}"
+          mask: "{{ vpc.vlan_underlay_mask }}"
           state: present
           provider: "{{ nxapi }}"
         when: vpc.domain is defined
         tags:
-          - configure_l3_vpc_vpl_vlan
-          - vpc_vpl_vlan_l3
-      - name: Configure L3 VLAN VPC PL IPv4
-        nxos_config:
-          lines:
-            - no autostate
-          parents: interface Vlan{{ vpc.vlan }}
+          - configure_l3_vpc_underlay_vlan
+          - vpc_underlay_vlan
+      - name: Configure L3 VLAN VPC Underlay PIM
+        nxos_pim_interface:
+          interface: "Vlan{{ vpc.vlan }}"
+          sparse: true
+          state: present
           provider: "{{ nxapi }}"
         when: vpc.domain is defined
         tags:
-          - configure_l3_vpc_vpl_vlan
-          - vpc_vpl_vlan_l3
+          - configure_pim_vpc_underlay_vlan
+          - vpc_underlay_vlan
+      - name: Confgure OSPF VLAN VPC Underlay
+        nxos_interface_ospf:
+          interface: "Vlan{{ vpc.vlan }}"
+          ospf: "{{ underlay['ospf']['process'] }}"
+          area: "{{ underlay['ospf']['area'] }}"
+          cost: default
+          passive_interface: false
+          state: present
+          provider: "{{ nxapi }}"
+        when: vpc.domain is defined
+        tags:
+          - configure_ospf_vpc_underlay_vlan
+          - vpc_underlay_vlan
+      - name: Confgure OSPF VLAN Underlay network type
+        nxos_config:
+          lines:
+            - ip ospf network point-to-point
+          parents: "interface Vlan{{ vpc.vlan }}"
+          provider: "{{ nxapi }}"
+        when: vpc.domain is defined
+        tags:
+          - configure_ospf_vpc_underlay_vlan
+          - vpc_underlay_vlan
       rescue:
         - set_fact:
             trigger_msg: True

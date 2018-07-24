@@ -4,17 +4,18 @@ vpc:
   system_priority: 200
   po_id: 4096
   po_mode: active
-  vrf: vpcpl
+  vrf: management
   peer_gw: True
   auto_recovery: True
   delay_restore: 150
  
-  vpc_dst: 192.168.0.1
+  vpc_dst: 192.168.100.167
   vpc_peer: n9k-leaf-1
  
-  vpc_src: 192.168.0.2
-  vpc_src_mask: 30
+  vpc_src: 192.168.100.164 
   vlan: 123
+  vlan_underlay_ipv4: 192.168.168.2
+  vlan_underlay_mask: 30
   vpc_interfaces:
     - Ethernet1/51
     - Ethernet1/52

@@ -24,6 +24,6 @@ underlay:
   interfaces:
     - interface: Eth1/54
       description: to_n9k-spine-1_ethernet2/12
-      ipaddress: 10.1.1.14
-      mask: 30
+      ipaddress: 10.1.1.7
+      mask: 31
       mtu: 9216
