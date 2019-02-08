@@ -1,0 +1,65 @@
+{% set bgw = groups['bgw'] %}
+{% for host in bgw %}
+{% if inventory_hostname == host %}
+bgw:
+  siteid: {{ siteid }}
+  asn: {{ asn }}
+  vip:
+    ip: {{ vip.ip }}
+    mask: {{ vip.mask }}
+    description: {{ vip.description }}
+    interface: {{ vip.interface }}
+{% endif %}
+{% endfor %}
+
+  bgp:
+{% for key,value in bgp.iteritems() %}
+    - neighbor: {{ value.neighbor }}
+      asn: {{ value.asn }}
+      multihop: {{ value.multihop }}
+      updatesource: {{ value.updatesource }}
+{% endfor %}
+
+{% for key, value in tracking.iteritems() %}
+
+{% if key == 'dci' %}
+  dci_interfaces:
+{% for node_name, id in value.iteritems() %}
+{% if inventory_hostname == node_name %}
+{% for node_id, details in id.iteritems() %}
+    - local_interface: {{ details.local_ifx }}
+      remote_interface: {{ details.remote_ifx }}
+      remote_ne: {{ details.peer }}
+{% for key,value in wan.iteritems() %}
+{% if key == inventory_hostname%}
+{% for id, params in value.iteritems() %}
+{% if params.local_if == details.local_ifx%}
+      local_ip: {{ params.local_ip }}
+      remote_ip: {{ params.remote_ip }}
+      mtu: {{ params.mtu }}
+      mask: {{ params.mask }}
+      asn: {{ params.asn }}
+{% endif %}
+{% endfor %}
+{% endif %}
+{% endfor %}
+
+{% endfor %}
+{% endif %}
+{% endfor %}
+{% endif %}
+
+{% if key == 'fabric' %}
+  fabric_interfaces:
+{% for node_name, id in value.iteritems() %}
+{% if inventory_hostname == node_name %}
+{% for node_id, details in id.iteritems() %}
+    - local_interface: {{ details.local_ifx }}
+      remote_interface: {{ details.remote_ifx }}
+      remote_ne: {{ details.peer }}
+{% endfor %}
+{% endif %}
+{% endfor %}
+{% endif %}
+
+{% endfor %}

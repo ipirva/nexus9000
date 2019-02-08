@@ -1,0 +1,6 @@
+---
+- name: Generate BGW variables
+  template: >
+    src=main.j2
+    dest=host_vars/{{inventory_hostname}}/generated_bgw_variables.yml
+  run_once: true
