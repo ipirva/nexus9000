@@ -1,0 +1,203 @@
+---
+- name: Configure Underlay BGW
+  hosts: [bgw]
+  connection: local
+  gather_facts: no
+  roles:
+    - common
+    #- configure_loopbacks
+  vars:
+    playbook_name: "Configure infrastructure underlay BGW"
+  tasks:
+    - name: Create checkpoint
+      nxos_rollback:
+        checkpoint_file: checkpoint.cfg
+        provider: "{{ nxapi }}"
+      tags:
+        - create_checkpoint
+    - block:
+      - name: Configure BGW Multi-Site SiteID
+        nxos_config:
+          lines:
+            - "evpn multisite border-gateway {{ bgw['siteid'] }}"
+          provider: "{{ nxapi }}"
+        tags:
+          - configure_bgw_multisite_siteid
+          - bgw
+      - name: Configure BGW Multi-Site SiteID
+        nxos_config:
+          lines:
+            - delay-restore time 300
+          parents: "evpn multisite border-gateway {{ bgw['siteid'] }}"
+          provider: "{{ nxapi }}"
+        tags:
+          - configure_bgw_multisite_siteid
+          - bgw
+      - name: Configure Underlay BGW Multi-Site VIP Loopback admin
+        nxos_interface:
+          name: "{{ bgw['vip']['interface'] }}"
+          admin_state: up
+          description: "{{ bgw['vip']['description'] }}"
+          provider: "{{ nxapi }}"
+        tags:
+          - configure_underlay_bgw_vip_loopback_admin
+          - bgw
+      - name: Configure Underlay Multi-Site VIP Loopback ip
+        nxos_ip_interface:
+          interface: "{{ bgw['vip']['interface'] }}"
+          addr: "{{ bgw['vip']['ip'] }}"
+          mask: "{{ bgw['vip']['mask'] }}"
+          tag: "{{ bgw['asn'] }}"
+          provider: "{{ nxapi }}"
+        tags:
+          - configure_underlay_bgw_vip_loopback_ip
+          - bgw
+      - name: Confgure OSPF Underlay Multi-Site VIP
+        nxos_interface_ospf:
+          interface: "{{ bgw['vip']['interface'] }}"
+          ospf: "{{ underlay['ospf']['process'] }}"
+          area: "{{ underlay['ospf']['area'] }}"
+          cost: default
+          passive_interface: false
+          state: present
+          provider: "{{ nxapi }}"
+        tags:
+          - configure_underlay_bgw_vip_ospf
+          - bgw
+      - name: Configure site-internal interface (Fabric)
+        nxos_config:
+          lines:
+            #- description "{{ item['remote_interface'] + '-' + item['remote_ne'] }}"
+            #- no switchport
+            - evpn multisite fabric-tracking
+            - medium p2p
+          parents: "interface {{ item['local_interface'] }}"
+          provider: "{{ nxapi }}"
+        with_items: "{{ bgw['fabric_interfaces'] }}"
+        tags:
+          - configure_underlay_bgw_fabric_interfaces
+          - bgw
+     # - name: Configure site-external interface (DCI)
+     #   nxos_config:
+     #     lines:
+     #       - description {{ item['remote_interface'] + '-' + item['remote_ne'] }}
+     #       - no switchport
+     #       - evpn multisite dci-tracking
+     #       - medium p2p
+     #       - "ip address {{ item['local_ip'] + '/' + item['mask'] }}"
+     #       - no shutdown
+     #     parents: "interface {{ item['local_interface'] }}"
+     #     provider: "{{ nxapi }}"
+     #   with_items: "{{ bgw['dci_interfaces'] }}"
+     #   tags:
+     #     - configure_underlay_bgw_dci_interfaces
+     #     - bgw
+      - name: Configure site-external interface (DCI)
+        nxos_interface:
+          name: "{{ item['local_interface'] }}"
+          admin_state: up
+          description: "{{ item['remote_interface'] + '-' + item['remote_ne'] }}"
+          mtu: "{% if item['mtu'] is defined %} {{ item['mtu'] }} {% else %} 1500 {% endif %}"
+          mode: layer3
+          provider: "{{ nxapi }}"
+        with_items: "{{ bgw['dci_interfaces'] }}"
+        tags:
+          - configure_underlay_bgw_dci_interfaces
+          - bgw
+      - name: Configure site-external interface (DCI)
+        nxos_ip_interface:
+          interface: "{{ item['local_interface'] }}"
+          addr: "{{ item['local_ip'] }}"
+          mask: "{{ item['mask'] }}"
+          tag: "{{ bgw['asn'] }}"
+          provider: "{{ nxapi }}"
+        with_items: "{{ bgw['dci_interfaces'] }}"
+        tags:
+          - configure_underlay_bgw_dci_interfaces
+          - bgw
+      - name: Configure site-external interface (DCI)
+        nxos_config:
+          lines:
+            - evpn multisite dci-tracking
+            - medium p2p
+          parents: "interface {{ item['local_interface'] }}"
+          provider: "{{ nxapi }}"
+        with_items: "{{ bgw['dci_interfaces'] }}"
+        tags:
+          - configure_underlay_bgw_dci_interfaces
+          - bgw
+      - name: Configure BGP redistrib TAG Lo BGW
+        nxos_config:
+          lines:
+            - route-map RMAP-REDIST-DIRECT permit 10
+          provider: "{{ nxapi }}"
+        tags:
+          - configure_underlay_bgw_rm
+          - bgw
+      - name: Configure BGP redistrib TAG Lo BGW
+        nxos_config:
+          lines:
+            - "match tag {{ bgw['asn'] }}" 
+          parents: route-map RMAP-REDIST-DIRECT permit 10
+          provider: "{{ nxapi }}"
+        tags:
+          - configure_underlay_bgw_rm
+          - bgw
+      - name: Configure BGP EVPN NEI WAN
+        nxos_bgp_af:
+          asn: "{{ bgw['asn'] }}"
+          vrf: default
+          afi: ipv4
+          safi: unicast
+          maximum_paths: 4
+          state: present
+          provider: "{{ nxapi }}"
+        tags:
+          - configure_bgp_evpn_nei_wan
+          - bgw
+      - name: Configure BGP redistrib TAG Lo BGW
+        nxos_config:
+          lines:
+            - redistribute direct route-map RMAP-REDIST-DIRECT
+          parents:
+            - "router bgp {{ bgw['asn'] }}"
+            - address-family ipv4 unicast
+          provider: "{{ nxapi }}"
+        tags:
+          - configure_underlay_bgw_rm
+          - bgw
+      - name: Configure BGP EVPN NEI WAN
+        nxos_bgp_neighbor:
+          asn: "{{ bgw['asn'] }}"
+          neighbor: "{{ item['remote_ip'] }}"
+          remote_as: "{{ item['asn'] }}"
+          update_source: "{{ item['local_interface'] }}"
+          state: present
+          provider: "{{ nxapi }}"
+        with_items: "{{ bgw['dci_interfaces'] }}"
+        tags:
+          - configure_bgp_evpn_nei_wan
+          - bgw
+      - name: Configure BGP EVPN NEI WAN
+        nxos_bgp_neighbor_af:
+          asn: "{{ bgw['asn'] }}"
+          neighbor: "{{ item['remote_ip'] }}"
+          afi: ipv4
+          safi: unicast
+          state: present
+          provider: "{{ nxapi }}"
+        with_items: "{{ bgw['dci_interfaces'] }}"
+        tags:
+          - configure_bgp_evpn_nei_wan
+          - bgw
+      rescue:
+        - set_fact:
+            trigger_msg: True
+            send_msg: "{{ playbook_name }} -  error configure on {{ inventory_hostname }}"
+          changed_when: True
+          notify: notify using spark
+        - name: Rollback to checkpoint
+          nxos_rollback:
+            rollback_to: checkpoint.cfg
+            provider: "{{ nxapi }}"
+...

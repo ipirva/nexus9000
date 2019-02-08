@@ -1,0 +1,59 @@
+---
+- name: Copy Image To All Devices And Check MD5 Sum
+  hosts: [leaf,bleaf,bgw,spine]
+  connection: local
+  gather_facts: no
+  roles:
+    - common
+  vars:
+    playbook_name: "Copy Image To All Devices And Check MD5 Sum"
+
+  tasks:
+    - name: Check MD5 Sum of installed NXOS
+      nxos_command:
+        commands:
+          - "show file bootflash:{{ file_name }} md5sum"
+        provider: "{{ nxapi }}"
+      register: output
+
+    - name: Check installed NXOS
+      nxos_command:
+        commands:
+          - "show version"
+        provider: "{{ nxapi }}"
+      register: outputver
+
+    - name: Print installed NXOS
+      debug: msg="{{outputver['stdout'][0]['kickstart_ver_str']}}"
+
+    - name: Delete NXOS if MD5 is wrong
+      nxos_command: 
+        commands: 
+          - "delete bootflash:{{ file_name }} no-prompt"
+        provider: "{{ cli }}"
+      when:
+        - output['stdout'][0]['file_content_md5sum'] is defined
+        - output['stdout'][0]['file_content_md5sum'] != md5
+
+    - name: Copy File to the Switch
+      nxos_file_copy:
+        local_file: "{{ folder }}/{{ file_name }}"
+        provider: "{{ nxapi }}"
+      when: 
+        - output['stdout'][0]['file_content_md5sum'] is not defined or 
+          (output['stdout'][0]['file_content_md5sum'] is defined and output['stdout'][0]['file_content_md5sum'] != md5)
+
+    - name: Check MD5 Sum
+      nxos_command:
+        commands:
+          - "show file bootflash:{{file_name }} md5sum"
+        provider: "{{ nxapi }}"
+      register: output
+
+    - name: Print MD5 of the Copy NXOS as seen by the switch
+      debug: msg="{{output['stdout'][0]['file_content_md5sum']}}"
+
+    - name: Assert that MD5 on switch is correct - validate the Copy process
+      assert:
+        that:
+          - output['stdout'][0]['file_content_md5sum'] == "{{ md5 }}"

@@ -1,0 +1,39 @@
+underlay:
+  ospf:
+    routerid: Loopback0
+    process: underlay
+    area: 0
+    cost: 1
+  pim:
+    interface: Loopback254
+    address: 10.254.254.254
+    mask: 32
+    description: pim_rp_anycast
+    grouplist: 233.2.0.0/24
+  role: spine
+  loopbacks:
+    - interface: Loopback0
+      ipaddress: 10.20.10.0
+      mask: 32
+      description: loopback_underlay
+  interfaces:
+    - interface: Eth1/31
+      description: to_n9k-leaf-5_ethernet1/49
+      ipaddress: 10.2.1.1
+      mask: 30
+      mtu: 9216
+    - interface: Eth1/32
+      description: to_n9k-bleaf-3_ethernet1/49
+      ipaddress: 10.2.1.5
+      mask: 30
+      mtu: 9216
+    - interface: Eth1/33
+      description: to_n9k-bgw-2_ethernet1/49
+      ipaddress: 10.2.1.9
+      mask: 30
+      mtu: 9216
+    - interface: Eth1/34
+      description: to_n9k-bgw-3_ethernet1/49
+      ipaddress: 10.2.1.13
+      mask: 30
+      mtu: 9216

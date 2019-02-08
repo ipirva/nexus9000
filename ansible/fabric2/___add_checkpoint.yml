@@ -1,0 +1,17 @@
+---
+- name: Add checkpoint
+  hosts: [leaf,bleaf,bgw,spine]
+  connection: local
+  gather_facts: no
+  roles:
+    - common
+    #- configure_loopbacks
+  vars:
+    file: "{{ file }}"
+  tasks:
+    - name: Create checkpoint
+      nxos_rollback:
+        checkpoint_file: "{{ file }}"
+        provider: "{{ nxapi }}"
+      tags:
+        - create_checkpoint

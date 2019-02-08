@@ -1,0 +1,231 @@
+---
+- name: Configure Overlay
+  hosts: [leaf,bleaf,bgw,spine]
+  connection: local
+  gather_facts: no
+  roles:
+    - common
+  vars:
+    playbook_name: "Configure overlay infrastructure"
+  tasks:
+    - name: Create checkpoint
+      nxos_rollback:
+        checkpoint_file: checkpoint.cfg
+        provider: "{{ nxapi }}"
+      tags:
+        - create_checkpoint
+    - block:
+      - name: Configure EVPN control plane
+        nxos_evpn_global:
+          nv_overlay_evpn: true
+          provider: "{{ nxapi }}"
+        tags:
+          - choose_evpn_as_control_plane
+          - nvoverlayevpn
+          - spine
+          - leaf
+      - name: Configure Anycast GW MAC
+        nxos_overlay_global:
+          anycast_gateway_mac: "{{ overlay['overlay']['anycastgwmac'] }}"
+          provider: "{{ nxapi }}"
+        when: inventory_hostname in groups.leaf or inventory_hostname in groups.bleaf or inventory_hostname in groups.bgw
+        tags:
+          - configure_anycast_gw_mac
+          - anycastgw
+          - leaf
+      - name: Admin up NVE1 interface
+        nxos_interface:
+          name: nve1
+          admin_state: up
+          provider: "{{ nxapi }}"
+        when: inventory_hostname in groups.leaf or inventory_hostname in groups.bleaf or inventory_hostname in groups.bgw
+        tags:
+          - configure_nve_interface
+          - nve
+      - name: Configure NVE interface
+        nxos_vxlan_vtep:
+          interface: nve1
+          description: nve_interface
+          host_reachability: true
+          source_interface: "{{ overlay['overlay']['nvesourceifx'] }}"
+          source_interface_hold_down_time: "{{ overlay['overlay']['nveholddown'] }}"
+          shutdown: false
+          state: present
+          provider: "{{ nxapi }}"
+        when: inventory_hostname in groups.leaf or inventory_hostname in groups.bleaf or inventory_hostname in groups.bgw
+        tags:
+          - configure_nve_interface
+          - nve
+          - leaf
+      - name: Configure BGP ASN
+        nxos_bgp:
+          asn: "{{ overlay['bgpparameters']['asn'] }}"
+          router_id: "{{ overlay['bgpparameters']['routerid'] }}"
+          state: present
+          provider: "{{ nxapi }}"
+        tags:
+          - configure_bgp_asn
+          - bgp
+          - spine
+          - leaf
+      - name: Configure BGP AF 
+        nxos_bgp_af:
+          asn: "{{ overlay['bgpparameters']['asn'] }}"
+          afi: l2vpn
+          safi: evpn
+          state: present
+          provider: "{{ nxapi }}"
+        tags:
+          - configure_bgp_af
+          - bgp
+          - spine
+          - leaf
+      - name: Configure BGP EVPN NEI
+        nxos_bgp_neighbor:
+          asn: "{{ overlay['bgpparameters']['asn'] }}"
+          neighbor: "{{ item }}"
+          remote_as: "{{ overlay['bgpparameters']['asn'] }}"
+          update_source: "{{ overlay['bgpparameters']['updatesource'] }}"
+          state: present
+          provider: "{{ nxapi }}"
+        with_items: "{{ overlay['bgpneighbors']['neighbor'] }}"
+        tags:
+          - configure_bgp_evpn_nei
+          - bgp
+          - spine
+          - leaf
+      - name: Configure BGP EVPN
+        nxos_bgp_neighbor_af:
+          asn: "{{ overlay['bgpparameters']['asn'] }}"
+          neighbor: "{{ item }}"
+          afi: l2vpn
+          safi: evpn
+          send_community: both
+          state: present
+          provider: "{{ nxapi }}"
+        with_items: "{{ overlay['bgpneighbors']['neighbor'] }}"
+        when: inventory_hostname in groups.leaf or inventory_hostname in groups.bleaf or inventory_hostname in groups.bgw
+        tags:
+          - configure_bgp_evpn
+          - bgp
+          - leaf
+      - name: Configure BGP IPv4
+        nxos_bgp_neighbor_af:
+          asn: "{{ overlay['bgpparameters']['asn'] }}"
+          neighbor: "{{ item }}"
+          afi: ipv4
+          safi: unicast
+          send_community: both
+          state: present
+          provider: "{{ nxapi }}"
+        with_items: "{{ overlay['bgpneighbors']['neighbor'] }}"
+        when: inventory_hostname in groups.leaf or inventory_hostname in groups.bleaf or inventory_hostname in groups.bgw
+        tags:
+          - configure_bgp_ipv4
+          - bgp
+          - leaf
+      - name: Configure BGP EVPN RR
+        nxos_bgp_neighbor_af:
+          asn: "{{ overlay['bgpparameters']['asn'] }}"
+          neighbor: "{{ item }}"
+          afi: l2vpn
+          safi: evpn
+          route_reflector_client: "true"
+          send_community: both
+          state: present
+          provider: "{{ nxapi }}"
+        with_items: "{{ overlay['bgpneighbors']['neighbor'] }}"
+        when: inventory_hostname in groups.spine
+        tags:
+          - configure_bgp_rvpn_rr
+          - bgp
+          - spine
+      - name: Configure BGP IPv4 RR
+        nxos_bgp_neighbor_af:
+          asn: "{{ overlay['bgpparameters']['asn'] }}"
+          neighbor: "{{ item }}"
+          afi: ipv4
+          safi: unicast
+          route_reflector_client: "true"
+          send_community: both
+          state: present
+          provider: "{{ nxapi }}"
+        with_items: "{{ overlay['bgpneighbors']['neighbor'] }}"
+        when: inventory_hostname in groups.spine
+        tags:
+          - configure_bgp_ipv4_rr
+          - bgp
+          - spine
+      - name: Configure BGP redistrib TAG
+        nxos_config:
+          lines:
+            - route-map RMAP-REDIST-DIRECT permit 10
+          provider: "{{ nxapi }}"
+        when: inventory_hostname in groups.leaf or inventory_hostname in groups.bleaf
+        tags:
+          - configure_overlay_reditrib_tag
+      - name: Configure BGP redistrib TAG
+        nxos_config:
+          lines:
+            - "match tag {{ overlay['bgpparameters']['asn'] }}"
+          parents: route-map RMAP-REDIST-DIRECT permit 10
+          provider: "{{ nxapi }}"
+        when: inventory_hostname in groups.leaf or inventory_hostname in groups.bleaf
+        tags:
+          - configure_overlay_reditrib_tag
+      - name: Configure BGP redistrib TAG
+        nxos_config:
+          lines:
+            - route-map RMAP-REDIST-STATIC permit 10
+          provider: "{{ nxapi }}"
+        when: inventory_hostname in groups.leaf or inventory_hostname in groups.bleaf
+        tags:
+          - configure_overlay_reditrib_tag
+      - name: Configure BGP redistrib TAG
+        nxos_config:
+          lines:
+            - "match tag {{ overlay['bgpparameters']['asn'] }}"
+          parents: route-map RMAP-REDIST-STATIC permit 10
+          provider: "{{ nxapi }}"
+        when: inventory_hostname in groups.leaf or inventory_hostname in groups.bleaf
+        tags:
+          - configure_overlay_reditrib_tag
+      - name: Configure Advertise-PIP NVE
+        nxos_config:
+          lines:
+            - advertise virtual-rmac
+          parents: interface nve1
+          provider: "{{ nxapi }}"
+        when: inventory_hostname in groups.bleaf or inventory_hostname in groups.leaf
+        tags:
+          - configure_nve1_advertise_pip
+          - pip
+          - nve
+          - bleaf
+      - name: Configure Advertise-PIP BGP
+        nxos_config:
+          lines:
+            - advertise-pip
+          parents:
+            - "router bgp {{ overlay['bgpparameters']['asn'] }}"
+            #- router bgp 65200
+            - address-family l2vpn evpn 
+          after: exit
+          provider: "{{ nxapi }}"
+        when: inventory_hostname in groups.bleaf or inventory_hostname in groups.leaf
+        tags:
+          - configure_nve1_advertise_pip
+          - pip
+          - nve
+          - bleaf
+      rescue:
+        - set_fact:
+            trigger_msg: True
+            send_msg: "{{ playbook_name }} -  error configure on {{ inventory_hostname }}"
+          changed_when: True
+          notify: notify using spark
+        - name: Rollback to checkpoint
+          nxos_rollback:
+            rollback_to: checkpoint.cfg
+            provider: "{{ nxapi }}"
+...

@@ -1,0 +1,104 @@
+{
+    "ne": [
+        {
+            "name": "n9k-spine-2",
+            "connectivity": [
+                {
+                    "local_ifx": "mgmt0",
+                    "remote_ne": "SW-CORP.priv.gsp-france-lab.com",
+                    "remote_ifx": "Eth103/1/5"
+                },
+                {
+                    "local_ifx": "Eth1/31",
+                    "remote_ne": "n9k-leaf-5",
+                    "remote_ifx": "Ethernet1/49"
+                },
+                {
+                    "local_ifx": "Eth1/32",
+                    "remote_ne": "n9k-bleaf-3",
+                    "remote_ifx": "Ethernet1/49"
+                },
+                {
+                    "local_ifx": "Eth1/33",
+                    "remote_ne": "n9k-bgw-2",
+                    "remote_ifx": "Ethernet1/49"
+                },
+                {
+                    "local_ifx": "Eth1/34",
+                    "remote_ne": "n9k-bgw-3",
+                    "remote_ifx": "Ethernet1/49"
+                }
+            ]
+        },
+        {
+            "name": "n9k-leaf-5",
+            "connectivity": [
+                {
+                    "local_ifx": "mgmt0",
+                    "remote_ne": "SW-CORP.priv.gsp-france-lab.com",
+                    "remote_ifx": "Eth103/1/6"
+                },
+                {
+                    "local_ifx": "Eth1/49",
+                    "remote_ne": "n9k-spine-2",
+                    "remote_ifx": "Ethernet1/31"
+                }
+            ]
+        },
+        {
+            "name": "n9k-bleaf-3",
+            "connectivity": [
+                {
+                    "local_ifx": "mgmt0",
+                    "remote_ne": "SW-CORP.priv.gsp-france-lab.com",
+                    "remote_ifx": "Eth103/1/7"
+                },
+                {
+                    "local_ifx": "Eth1/49",
+                    "remote_ne": "n9k-spine-2",
+                    "remote_ifx": "Ethernet1/32"
+                }
+            ]
+        },
+        {
+            "name": "n9k-bgw-2",
+            "connectivity": [
+                {
+                    "local_ifx": "mgmt0",
+                    "remote_ne": "SW-CORP.priv.gsp-france-lab.com",
+                    "remote_ifx": "Eth103/1/9"
+                },
+                {
+                    "local_ifx": "Eth1/49",
+                    "remote_ne": "n9k-spine-2",
+                    "remote_ifx": "Ethernet1/33"
+                },
+                {
+                    "local_ifx": "Eth1/20",
+                    "remote_ne": "wan",
+                    "remote_ifx": "Ethernet1/4"
+                }
+            ]
+        },
+        {
+            "name": "n9k-bgw-3",
+            "connectivity": [
+                {
+                    "local_ifx": "mgmt0",
+                    "remote_ne": "SW-CORP.priv.gsp-france-lab.com",
+                    "remote_ifx": "Eth103/1/8"
+                },
+                {
+                    "local_ifx": "Eth1/49",
+                    "remote_ne": "n9k-spine-2",
+                    "remote_ifx": "Ethernet1/34"
+                },
+                {
+                    "local_ifx": "Eth1/20",
+                    "remote_ne": "wan",
+                    "remote_ifx": "Ethernet1/3"
+                }
+            ]
+        }
+    ]
+}

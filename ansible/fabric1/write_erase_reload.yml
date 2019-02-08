@@ -1,0 +1,17 @@
+---
+- name: Erase config Fabric
+  hosts: [leaf,bleaf,bgw,spine]
+  any_errors_fatal: true
+  connection: local
+  gather_facts: no
+  roles:
+    - common
+    #- configure_loopbacks
+  tasks:
+    - name: Write Erase & Reload
+      nxos_config:
+        lines:
+          - write erase
+          - reload
+        provider: "{{ nxapi }}"
+...

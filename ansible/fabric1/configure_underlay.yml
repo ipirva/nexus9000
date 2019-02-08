@@ -1,0 +1,270 @@
+---
+- name: Configure Underlay
+  hosts: [leaf,bleaf,bgw,spine]
+  connection: local
+  gather_facts: no
+  roles:
+    - common
+    #- configure_loopbacks
+  vars:
+    playbook_name: "Configure infrastructure underlay"
+  tasks:
+    - name: Create checkpoint
+      nxos_rollback:
+        checkpoint_file: checkpoint.cfg
+        provider: "{{ nxapi }}"
+      tags:
+        - create_checkpoint
+    - block:
+      - name: Configure OSPF Underlay process
+        nxos_ospf:
+          ospf: "{{ underlay['ospf']['process'] }}"
+          state: present
+          provider: "{{ nxapi }}"
+        tags:
+          - configure_ospf_underlay_process
+          - ospf
+      - name: Configure OSPF Underlay parameters
+        nxos_ospf_vrf:
+          ospf: "{{ underlay['ospf']['process'] }}"
+          vrf: default
+          state: present
+          log_adjacency: detail
+          passive_interface: false
+          router_id: "{% if item['interface'] == underlay['ospf']['routerid'] %} {{ item['ipaddress'] }} {% else %} 1.1.1.1 {% endif %}"
+          provider: "{{ nxapi }}"
+        with_items: "{{ underlay['loopbacks'] }}"
+        tags:
+          - configure_ospf_underlay_parameters
+          - ospf
+      - name: Configure Underlay Loopback admin
+        nxos_interface:
+          name: "{{ item['interface'] }}"
+          admin_state: up
+          description: "{{ item['description'] }}"
+          provider: "{{ nxapi }}"
+        with_items: "{{ underlay['loopbacks'] }}"
+        tags:
+          - configure_underlay_loopback_admin
+          - interface
+      - name: Configure Underlay NVE Loopback admin
+        nxos_interface:
+          name: "{{ item['interface'] }}"
+          admin_state: up
+          description: "{{ item['description'] }}"
+          provider: "{{ nxapi }}"
+        with_items: "{{ underlay['nve_loopbacks'] }}"
+        when: inventory_hostname in groups.leaf or inventory_hostname in groups.bleaf or inventory_hostname in groups.bgw
+        tags:
+          - configure_underlay_nve_loopback_admin
+          - interface
+      - name: Configure PIM anycast Loopback admin
+        nxos_interface:
+          name: "{{ underlay['pim']['interface'] }}"
+          admin_state: up
+          description: "{{ underlay['pim']['description'] }}"
+          provider: "{{ nxapi }}"
+        when: inventory_hostname in groups.spine
+        tags:
+          - configure_pim_anycast_loopback_admin
+          - interface
+      - name: Configure Spine-Leaf interfaces admin
+        nxos_interface:
+          name: "{{ item['interface'] }}"
+          description: "{{ item['description'] }}"
+          mode: layer3
+          admin_state: up
+          mtu: "{% if item['mtu'] is defined %} {{ item['mtu'] }} {% else %} 1500 {% endif %}"
+          provider: "{{ nxapi }}"
+        with_items: "{{ underlay['interfaces'] }}"
+        tags:
+          - configure_spine_leaf_interfaces_admin
+          - interface
+      - name: Configure Underlay Loopback ip
+        nxos_ip_interface:
+          interface: "{{ item['interface'] }}"
+          addr: "{{ item['ipaddress'] }}"
+          mask: "{{ item['mask'] }}"
+          tag: "{{ overlay['bgpparameters']['asn'] }}"
+          provider: "{{ nxapi }}"
+        with_items: "{{ underlay['loopbacks'] }}"
+        tags:
+          - configure_underlay_loopback_ip
+          - interface
+      - name: Configure Underlay NVE Loopback ip
+        nxos_ip_interface:
+          interface: "{{ item['interface'] }}"
+          addr: "{{ item['ipaddress'] }}"
+          mask: "{{ item['mask'] }}"
+          tag: "{{ overlay['bgpparameters']['asn'] }}"
+          provider: "{{ nxapi }}"
+        with_items: "{{ underlay['nve_loopbacks'] }}"
+        when: inventory_hostname in groups.leaf or inventory_hostname in groups.bleaf or inventory_hostname in groups.bgw
+        tags:
+          - configure_underlay_nve_loopback_ip
+          - interface
+      - name: Configure PIM anycast Loopback ip
+        nxos_ip_interface:
+          interface: "{{ underlay['pim']['interface'] }}"
+          addr: "{{ underlay['pim']['address'] }}"
+          mask: "{{ underlay['pim']['mask'] }}"
+          provider: "{{ nxapi }}"
+        when: inventory_hostname in groups.spine
+        tags:
+          - configure_pim_anycast_loopback_ip
+          - pim
+          - interface
+      - name: Configure Spine-Leaf interfaces ip
+        nxos_ip_interface:
+          interface: "{{ item['interface'] }}"
+          addr: "{{ item['ipaddress'] }}"
+          mask: "{{ item['mask'] }}"
+          provider: "{{ nxapi }}"
+        with_items: "{{ underlay['interfaces'] }}"
+        tags:
+          - configure_spine_leaf_interfaces_ip
+          - interface
+      #- name: Configure Spine-Leaf interfaces and Lo0 ip
+      #  nxos_l3_interface:
+      #    name: "{{ item['interface'] }}"
+      #    ipv4: "{{ item['ipaddress'] }}/{{ item['mask'] }}"
+      #    provider: "{{ nxapi }}"
+      #  with_items: "{{ interfaces }}"
+      #  tags:
+      #    - configure_spine_leaf_interfaces_lo0_ip
+      - name: Confgure OSPF Underlay
+        nxos_interface_ospf:
+          interface: "{{ item['interface'] }}"
+          ospf: "{{ underlay['ospf']['process'] }}"
+          area: "{{ underlay['ospf']['area'] }}"
+          cost: default
+          passive_interface: false
+          state: present
+          provider: "{{ nxapi }}"
+        with_items: 
+          - "{{ underlay['interfaces'] }}"
+          - "{{ underlay['loopbacks'] }}"
+        tags:
+          - configure_ospf_underlay
+          - ospf
+      - name: Confgure OSPF Underlay - NVE Loopback
+        nxos_interface_ospf:
+          interface: "{{ item['interface'] }}"
+          ospf: "{{ underlay['ospf']['process'] }}"
+          area: "{{ underlay['ospf']['area'] }}"
+          cost: default
+          passive_interface: false
+          state: present
+          provider: "{{ nxapi }}"
+        when: inventory_hostname in groups.leaf or inventory_hostname in groups.bleaf or inventory_hostname in groups.bgw
+        with_items:
+          - "{{ underlay['nve_loopbacks'] }}"
+        tags:
+          - configure_ospf_underlay
+          - ospf
+      - name: Confgure OSPF PIM Anycast
+        nxos_interface_ospf:
+          interface: "{{ underlay['pim']['interface'] }}"
+          ospf: "{{ underlay['ospf']['process'] }}"
+          area: "{{ underlay['ospf']['area'] }}"
+          cost: default
+          passive_interface: false
+          state: present
+          provider: "{{ nxapi }}"
+        when: inventory_hostname in groups.spine
+        tags:
+          - configure_ospf_pim_anycast
+          - ospf
+      - name: Confgure OSPF Underlay network type
+        nxos_config:
+          lines:
+            - ip ospf network point-to-point
+          parents: "interface {{ item['interface'] }}"
+          provider: "{{ nxapi }}"
+        with_items: "{{ underlay['interfaces'] }}"
+        tags:
+          - configure_ospf_network_type
+          - ospf
+      - name: Configure PIM on underlay interfaces
+        nxos_pim_interface:
+          interface: "{{ item['interface'] }}"
+          sparse: true
+          provider: "{{ nxapi }}"
+        with_items:
+          - "{{ underlay['interfaces'] }}"
+          - "{{ underlay['loopbacks'] }}"
+        tags:
+          - configure_pim_on_underlay_interfaces
+          - pim
+      - name: Configure PIM on NVE interface Loopback
+        nxos_pim_interface:
+          interface: "{{ item['interface'] }}"
+          sparse: true
+          provider: "{{ nxapi }}"
+        when: inventory_hostname in groups.leaf or inventory_hostname in groups.bleaf or inventory_hostname in groups.bgw
+        with_items:
+          - "{{ underlay['nve_loopbacks'] }}"
+        tags:
+          - configure_pim_on_underlay_interfaces
+          - pim
+      #- name: Configure PIM on underlay interfaces
+      #  nxos_config:
+      #    lines:
+      #      - ip pim sparse-mode
+      #    parents: "interface {{ item['interface'] }}"
+      #    provider: "{{ nxapi }}"
+      #  with_items:
+      #    - "{{ underlay['interfaces'] }}"
+      #    - "{{ underlay['loopbacks'] }}"
+      #  tags:
+      #    - configure_pim_on_underlay_interfaces
+      #    - pim
+      - name: Configure PIM on anycast Loopback
+        nxos_pim_interface:
+          interface: "{{ underlay['pim']['interface'] }}"
+          sparse: true
+          provider: "{{ nxapi }}"
+        when: inventory_hostname in groups.spine
+        tags:
+          - configure_pim_on_anycast_loopback
+          - pim
+      #- name: Configure PIM on anycast Loopback
+      #  nxos_config:
+      #    lines:
+      #      - ip pim sparse-mode
+      #    parents: "interface {{ underlay['pim']['interface'] }}"
+      #    provider: "{{ nxapi }}"
+      #  when: inventory_hostname in groups.spine
+      #  tags:
+      #    - configure_pim_on_anycast_loopback
+      #    - pim
+      - name: Configure PIM RP
+        nxos_pim_rp_address:
+          rp_address: "{{ underlay['pim']['address'] }}"
+          state: present
+          group_list: "{{ underlay['pim']['grouplist'] }}"
+          provider: '{{ nxapi }}'
+        tags:
+          - configure_pim_rp
+          - pim
+      - name: Configure PIM Anycast RP
+        nxos_config:
+          lines:
+            - ip pim anycast-rp {{ underlay['pim']['address'] }} {{ item['ipaddress'] }}
+          provider: "{{ nxapi }}"
+        with_items: "{{ underlay['loopbacks'] }}"
+        when: inventory_hostname in groups.spine
+        tags:
+          - configure_pim_anycast_rp_spine
+          - pim
+      rescue:
+        - set_fact:
+            trigger_msg: True
+            send_msg: "{{ playbook_name }} -  error configure on {{ inventory_hostname }}"
+          changed_when: True
+          notify: notify using spark
+        - name: Rollback to checkpoint
+          nxos_rollback:
+            rollback_to: checkpoint.cfg
+            provider: "{{ nxapi }}"
+...

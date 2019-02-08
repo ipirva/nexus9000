@@ -1,0 +1,467 @@
+Sandbox access from local:
+ssh -L 1111:192.168.100.167:443 root@10.60.11.206
+
+Checkpoint in time:
+ansible-playbook -i /root/ansible/scripts/inventory.py  -e "file=intertenantcomm.conf" ___add_checkpoint.yml
+
+Server side configuration:
+
+Multi-VRF server (Namespace)
+
+ip netns add vrfa
+ip netns add vrfb
+
+ip link add link bond_fabric name bond_fabric.100 type vlan id 100
+ip link add link bond_fabric name bond_fabric.200 type vlan id 200
+
+ip link set bond_fabric.100 netns vrfa
+ip link set bond_fabric.200 netns vrfb
+
+ip netns exec vrfa ip link set dev bond_fabric.100 up
+ip netns exec vrfb ip link set dev bond_fabric.200 up
+
+ip netns exec vrfa ip route add 0.0.0.0/0 via 192.168.123.1 dev bond_fabric.100
+ip netns exec vrfb ip route add 0.0.0.0/0 via 192.168.223.1 dev bond_fabric.200
+
+
+Single VRF server
+
+ip link add link bond_fabric name bond_fabric.100 type vlan id 100
+ip link add link bond_fabric name bond_fabric.200 type vlan id 200
+
+ip addr add 192.168.123.200/24 dev bond_fabric.100
+ip link set dev bond_fabric.100 up
+
+ip addr add 192.168.223.100/24 dev bond_fabric.200
+ip link set dev bond_fabric.200 up
+
+ip route add 192.168.223.0/24 via 192.168.123.1 dev bond_fabric.100
+ip route add 192.168.123.0/24 via 192.168.223.1 dev bond_fabric.200
+
+# Server fabric 2
+
+ip netns add vrfa
+ip link add link enp11s0 name enp11s0.100 type vlan id 100
+ip link set enp11s0.100 netns vrfa
+ip netns exec vrfa ip link set dev enp11s0.100 up
+ip netns exec vrfa ip addr add 192.168.123.10/24 dev enp11s0.100
+ip netns exec vrfa ip route add 0.0.0.0/0 via 192.168.123.1 dev  enp11s0.100
+
+Run SSH in each namespace to be able to test the inter-tenant communication:
+###
+
+ip netns exec vrfa /usr/sbin/sshd -o PidFile=/run/sshd-vrfa.pid
+ip netns exec vrfb /usr/sbin/sshd -o PidFile=/run/sshd-vrfb.pid
+
+and NGINX
+
+Edit: /usr/share/nginx/html/*
+ip netns exec vrfa nginx
+ip netns exec vrfb nginx
+
+
+Fabric IP side configuration:
+
+***Fabric 1, Add Tenant 1 (VRF-A)
+
+VLAN L3VNI - 10 (L3VNI 30010)
+VLAN L2VNI / Access - 100 (L2VNI 300100)
+
+VRF - VRF-A
+Access subnet: 192.168.123.0/24
+
+
+leaf-1, leaf-2, leaf-3 and leaf-4
+
+vlan 10
+  vn-segment 30010
+
+vlan 100
+  vn-segment 300100
+
+vrf context VRF-A
+  vni 30010
+  rd auto
+  address-family ipv4 unicast
+    route-target both auto
+    route-target both auto evpn
+
+interface Vlan10
+  description L3VNI VRF-A
+  no shutdown
+  vrf member VRF-A
+  no ip redirects
+  mtu 9216
+  ip forward
+  no ipv6 redirects
+
+interface Vlan100
+  description L2VNI VRF-A
+  no shutdown
+  mtu 9216
+  vrf member VRF-A
+  no ip redirects
+  ip address 192.168.123.1/24 tag 65100
+  no ipv6 redirects
+  fabric forwarding mode anycast-gateway
+
+interface nve1
+  member vni 30010 associate-vrf
+  member vni 300100
+    mcast-group 233.1.0.1
+
+evpn
+  vni 300100 l2
+    rd auto
+    route-target import auto
+    route-target export auto
+
+router bgp 65100
+  vrf VRF-A
+    address-family ipv4 unicast
+      advertise l2vpn evpn
+      redistribute direct route-map RMAP-REDIST-DIRECT
+
+
+leaf-1 & leaf-2
+
+interface port-channel111
+  description Server
+  switchport mode trunk
+  switchport trunk allowed vlan add 100
+  vpc 111
+  no shutdown
+
+interface Ethernet1/2
+  description Server
+  switchport
+  switchport mode trunk
+  switchport trunk allowed vlan add 100
+  channel-group 111 mode active
+  no shutdown
+
+leaf-3 & leaf-4
+
+interface port-channel111
+  description Server
+  switchport mode trunk
+  switchport trunk allowed vlan add 100
+  vpc 111
+  no shutdown
+
+interface Ethernet1/1
+  description Server
+  switchport
+  switchport mode trunk
+  switchport trunk allowed vlan add 100
+  channel-group 111 mode active
+  no shutdown
+
+
+***Fabric 1, Add Tenant 2 (VRF-B)
+
+VLAN L3VNI - 20 (L3VNI 30020)
+VLAN L2VNI / Access - 200 (L2VNI 300200)
+
+VRF - VRF-B
+Access subnet: 192.168.223.0/24
+
+
+leaf-3 and leaf-4
+
+vlan 20
+  vn-segment 30020
+
+vlan 200
+  vn-segment 300200
+
+vrf context VRF-B
+  vni 30020
+  rd auto
+  address-family ipv4 unicast
+    route-target both auto
+    route-target both auto evpn
+
+interface Vlan20
+  description L3VNI VRF-B
+  mtu 9216
+  no shutdown
+  vrf member VRF-B
+  no ip redirects
+  ip forward
+  no ipv6 redirects
+
+interface Vlan200
+  description L2VNI VRF-B
+  mtu 9216
+  no shutdown
+  
+  vrf member VRF-B
+  no ip redirects
+  ip address 192.168.223.1/24 tag 65100
+  no ipv6 redirects
+  fabric forwarding mode anycast-gateway
+
+interface nve1
+  member vni 30020 associate-vrf
+  member vni 300200
+    mcast-group 233.1.0.2
+
+evpn
+  vni 300200 l2
+    rd auto
+    route-target import auto
+    route-target export auto
+
+router bgp 65100
+  vrf VRF-B
+    address-family ipv4 unicast
+      advertise l2vpn evpn
+      redistribute direct route-map RMAP-REDIST-DIRECT
+
+leaf-3 & leaf-4
+
+interface port-channel111
+  description Server
+  sxitchport mode trunk
+  switchport trunk allowed vlan add 200
+  vpc 111
+  no shutdown
+
+interface Ethernet1/1
+  description Server
+  switchport
+  switchport mode trunk
+  switchport trunk allowed vlan add 200
+  channel-group 111 mode active
+  no shutdown
+
+
+***Fabric 2, Add Tenant 1 (VRF-A)
+
+VLAN L3VNI - 10 (L3VNI 30010)
+VLAN L2VNI / Access - 100 (L2VNI 300100)
+
+VRF - VRF-A
+Access subnet: 192.168.123.0/24
+
+
+leaf-5
+
+vlan 10
+  vn-segment 30010
+
+vlan 100
+  vn-segment 300100
+
+vrf context VRF-A
+  vni 30010
+  rd auto
+  address-family ipv4 unicast
+    route-target both auto
+    route-target both auto evpn
+
+interface Vlan10
+  description L3VNI VRF-A
+  mtu 9216
+  no shutdown
+  vrf member VRF-A
+  no ip redirects
+  ip forward
+  no ipv6 redirects
+
+interface Vlan100
+  description L2VNI VRF-A
+  mtu 9216
+  no shutdown
+  vrf member VRF-A
+  no ip redirects
+  ip address 192.168.123.1/24 tag 65200
+  no ipv6 redirects
+  fabric forwarding mode anycast-gateway
+
+interface nve1
+  member vni 30010 associate-vrf
+  member vni 300100
+    mcast-group 233.2.0.1
+
+evpn
+  vni 300100 l2
+    rd auto
+    route-target import auto
+    route-target export auto
+
+router bgp 65200
+  vrf VRF-A
+    address-family ipv4 unicast
+      advertise l2vpn evpn
+      redistribute direct route-map RMAP-REDIST-DIRECT
+
+
+leaf-5
+
+interface Ethernet1/1
+  description Server
+  switchport
+  switchport mode trunk
+  switchport trunk allowed vlan 100
+  no shutdown
+
+
+
+***Fabric 1, Border GW 1
+
+
+Layer 3 extension
+
+vlan 10
+  vn-segment 30010
+
+vrf context VRF-A
+  vni 30010
+  rd auto
+  address-family ipv4 unicast
+    route-target both auto
+    route-target both auto evpn
+
+interface Vlan10
+  mtu 9216
+  vrf member VRF-A
+  no ip redirects
+  ip forward
+  no ipv6 redirects
+
+interface nve1
+  member vni 30010 associate-vrf
+
+interface lo110
+  vrf member VRF-A
+  ip address 1.1.1.1/32 tag 65100
+
+router bgp 65100
+  vrf VRF-A                 
+    address-family ipv4 unicast             
+      advertise l2vpn evpn              
+      redistribute direct route-map RMAP-REDIST-DIRECT
+
+Layer 2 extension
+
+vlan 100
+  vn-segment 300100
+
+interface nve1
+  member vni 300100
+    multisite ingress-replication
+    mcast-group 233.1.0.1
+
+evpn
+  vni 300100 l2
+    rd auto
+    route-target import auto
+    route-target export auto
+
+
+***Firewall config Fabric 1 for inter-tenant routing
+
+=> VRF-A
+VLAN L3VNI - 60 (L3VNI 30020)
+BLeaf-FW: 192.168.60.0/30
+
+=> VRF-B
+VLAN L3VNI - 50 (L3VNI 30010)
+BLeaf-FW: 192.168.50.0/30
+
+
+bleaf-1
+
+vlan 50
+  vn-segment 30010
+
+vrf context VRF-A
+  vni 30010
+  # ip route 192.168.223.0/24 192.168.50.2 tag 65100
+  or
+  # ip route 0.0.0.0/0 192.168.50.2 tag 65100
+  rd auto
+  address-family ipv4 unicast
+    route-target both auto
+    route-target both auto evpn
+
+interface eth1/20
+  no switchport
+  no shutdown
+interface eth1/20.50
+  vrf member VRF-A
+  no ip redirects
+  encapsulation dot1q 50
+  ip address 192.168.50.1/30 tag 65100
+  no shutdown
+
+interface nve1
+    member vni 30010 associate-vrf
+
+
+router bgp 65100
+  vrf VRF-A
+    address-family ipv4 unicast
+      advertise l2vpn evpn
+      # network 0.0.0.0/0
+      redistribute direct route-map RMAP-REDIST-DIRECT
+      redistribute static route-map RMAP-REDIST-STATIC
+
+interface Ethernet1/20
+  no switchport
+  no shutdown
+
+interface Ethernet1/20.50
+  encapsulation dot1q 50
+  vrf member VRF-A
+  ip address 192.168.50.1/30 tag 65100
+  no shutdown
+
+
+bleaf-1
+
+vlan 60
+  vn-segment 30020
+
+vrf context VRF-B
+  vni 30020
+  # ip route 192.168.123.0/24 192.168.60.2 tag 65100
+  or
+  # ip route 0.0.0.0/0 192.168.60.2 tag 65100
+  rd auto
+  address-family ipv4 unicast
+    route-target both auto
+    route-target both auto evpn
+
+interface Vlan60
+  description L3VNI VRF-B
+  no shutdown
+  mtu 9216
+  vrf member VRF-B
+  no ip redirects
+  ip forward
+  no ipv6 redirects
+
+interface eth1/20
+  no switchport
+  no shutdown
+interface eth1/20.60
+  vrf member VRF-B
+  no ip redirects
+  encapsulation dot1q 60
+  ip address 192.168.60.1/30 tag 65100
+  no shutdown
+
+interface nve1
+    member vni 30020 associate-vrf
+
+router bgp 65100
+  vrf VRF-B
+    address-family ipv4 unicast
+      advertise l2vpn evpn
+      # network 0.0.0.0/0
+      redistribute direct route-map RMAP-REDIST-DIRECT
+      redistribute static route-map RMAP-REDIST-STATIC
+

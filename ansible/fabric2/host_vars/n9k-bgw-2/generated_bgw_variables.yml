@@ -1,0 +1,35 @@
+bgw:
+  siteid: 2000
+  asn: 65200
+  vip:
+    ip: 172.16.2.100
+    mask: 32
+    description: Multi-Site VIP Loopback
+    interface: loopback100
+
+  bgp:
+    - neighbor: 10.10.10.6
+      asn: 65100
+      multihop: 5
+      updatesource: Loopback0
+
+
+
+  fabric_interfaces:
+    - local_interface: Eth1/49
+      remote_interface: Ethernet1/33
+      remote_ne: n9k-spine-2
+
+
+  dci_interfaces:
+    - local_interface: Eth1/20
+      remote_interface: Ethernet1/4
+      remote_ne: wan
+      local_ip: 172.16.2.2
+      remote_ip: 172.16.2.1
+      mtu: 9216
+      mask: 30
+      asn: 65000
+
+
+

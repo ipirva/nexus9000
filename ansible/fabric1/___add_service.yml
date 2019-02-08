@@ -1,0 +1,10 @@
+---
+- name: Add overlay service
+  hosts: [leaf,bleaf]
+  connection: local
+  gather_facts: no
+  roles:
+    - common
+    #- configure_loopbacks
+- import_playbook: add_service.yml
+...

@@ -1,0 +1,8 @@
+---
+topology_file: /root/ansible/fabric1/topology.yml
+# target NXOS details
+file_name: nxos.9.2.2.bin
+kickstart: 9.2(2)
+folder: /tftpboot/poap/images
+md5: f8f2f7c2db12178d73dbe5c00072630e
+...

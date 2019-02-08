@@ -1,0 +1,78 @@
+---
+- name: Configure Overlay BGW
+  hosts: [bgw]
+  connection: local
+  gather_facts: no
+  roles:
+    - common
+    #- configure_loopbacks
+  vars:
+    playbook_name: "Configure infrastructure overlay BGW"
+  tasks:
+    - name: Create checkpoint
+      nxos_rollback:
+        checkpoint_file: checkpoint.cfg
+        provider: "{{ nxapi }}"
+      tags:
+        - create_checkpoint
+    - block:
+      - name: Configure BGW Multi-Site NVE params
+        nxos_config:
+          lines:
+            - "multisite border-gateway interface {{ bgw['vip']['interface'] }}"
+          parents: "interface nve1"
+          provider: "{{ nxapi }}"
+        tags:
+          - configure_bgw_multisite_nve_params
+          - bgw
+      - name: Configure BGP EVPN NEI Remote BGW
+        nxos_bgp_neighbor:
+          asn: "{{ bgw['asn'] }}"
+          neighbor: "{{ item['neighbor'] }}"
+          remote_as: "{{ item['asn'] }}"
+          ebgp_multihop: "{{ item['multihop'] }}"
+          update_source: "{{ item['updatesource'] }}"
+          state: present
+          provider: "{{ nxapi }}"
+        with_items: "{{ bgw['bgp'] }}"
+        tags:
+          - configure_bgp_evpn_nei_remote_bgw
+          - bgw
+      - name: Configure BGP EVPN NEI Remote BGW params
+        nxos_config:
+          lines:
+            - peer-type fabric-external
+          parents: 
+            - "router bgp {{ bgw['asn'] }}"
+            - "neighbor {{ item['neighbor'] }}" 
+          provider: "{{ nxapi }}"
+        with_items: "{{ bgw['bgp'] }}"
+        tags:
+          - configure_bgp_evpn_nei_remote_bgw_params
+          - bgw
+      - name: Configure BGP EVPN NEI Remote BGW params L2VPN
+        nxos_config:
+          lines:
+            - rewrite-evpn-rt-asn
+            - send-community
+            - send-community extended
+          parents:
+            - "router bgp {{ bgw['asn'] }}"
+            - "neighbor {{ item['neighbor'] }}"
+            - "address-family l2vpn evpn"
+          provider: "{{ nxapi }}"
+        with_items: "{{ bgw['bgp'] }}"
+        tags:
+          - configure_bgp_evpn_nei_remote_bgw_params
+          - bgw
+      rescue:
+        - set_fact:
+            trigger_msg: True
+            send_msg: "{{ playbook_name }} -  error configure on {{ inventory_hostname }}"
+          changed_when: True
+          notify: notify using spark
+        - name: Rollback to checkpoint
+          nxos_rollback:
+            rollback_to: checkpoint.cfg
+            provider: "{{ nxapi }}"
+...

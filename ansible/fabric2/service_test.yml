@@ -1,0 +1,10 @@
+services:
+  - { vlanid: 100, service: l2vni }
+  - { vlanid: 200, service: l2l3vni, mtu: 9216, vrfname: VRFA, l3vnivlan: 20, gwipaddress: "192.168.20.254/24" }
+l2service:
+  interfaces:
+    - { name: Eth1/1, bndlid: 1 }
+    - { name: port-channel1, vpc: 1, mtu: 9216, mode: trunk, vlanid: 100, native: 1 }
+vpc_pl: port-channel1234
+bgp_address_families:
+  - { vrf: VRFA, afi: ipv4, safi: unicast }

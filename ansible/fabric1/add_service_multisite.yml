@@ -1,0 +1,192 @@
+---
+- name: Extend L2VNI/L3VNI
+  hosts: [bgw]
+  connection: local
+  gather_facts: no
+  roles:
+    - common
+
+  vars:
+    playbook_name: "Extend overlay service"
+    extension: "{{ extension }}"
+
+  tasks:
+    - name: Include service variables
+      include_vars:
+        file: /root/ansible/fabric1/service_test.yml
+    - shell: uuidgen
+      with_sequence: count=1
+      register: uuid_list
+    - set_fact:
+        checkpoint_file_name: "{{uuid_list['results'][0]['stdout_lines'][0]}}.cfg"
+    - name: Create checkpoint
+      nxos_rollback:
+        checkpoint_file: "{{checkpoint_file_name}}"
+        provider: "{{ nxapi }}"
+      tags:
+        - create_checkpoint
+    - block:
+        - name: Configure L2VNI VLAN and map it to L2VNI
+          nxos_vlan:
+            vlan_id: "{{ item.vlanid }}"
+            mapped_vni: "3000{{ item.vlanid }}"
+            admin_state: up
+            provider: "{{ nxapi }}"
+          with_items: "{{ services }}"
+          when:
+            - extension == "l2vni"
+        - name: Configure L3VNI VLAN and map it to L3VNI
+          nxos_vlan:
+            vlan_id: "{{ item.l3vnivlan }}"
+            mapped_vni: "300{{ item.l3vnivlan }}"
+            admin_state: up
+            provider: "{{ nxapi }}"
+          when: 
+            - item.service == "l2l3vni" 
+            - extension == "l3vni"
+          with_items: "{{ services }}"
+        - name: Add L2VNI to overlay NVE1
+          nxos_vxlan_vtep_vni:
+            interface: nve1
+            vni: "3000{{ item.vlanid }}"
+            multicast_group: "232.2.0.{{ 255 % item.vlanid | round | int if (item.vlanid > 255) else item.vlanid }}"
+            suppress_arp: true
+            provider: "{{ nxapi }}"
+          with_items: "{{ services }}" 
+          when:
+            - extension == "l2vni"
+        - name: Add ingress replication multisite to overlay NVE1
+          nxos_config:
+            lines: "multisite ingress-replication"
+            parents:
+              - "interface nve1"
+              - "member vni 3000{{ item.vlanid }}"
+            provider: "{{ nxapi }}"
+          with_items: "{{ services }}"
+          when:
+            - extension == "l2vni"
+        - name: EVPN configuration
+          nxos_evpn_vni:
+            vni: "3000{{ item.vlanid }}"
+            route_distinguisher: auto
+            route_target_both: auto
+            provider: "{{ nxapi }}"
+          with_items: "{{ services }}"
+          when:
+            - extension == "l2vni"
+        - name: Obtain the router BGP local AS
+          nxos_command:
+            commands:
+              - show bgp process
+            provider: "{{ nxapi }}"
+          register: output_bgpprocess
+          ignore_errors: yes
+        - set_fact:
+            bgp_localas: "{{ output_bgpprocess['stdout_lines'][0]['protocoltag'] }}"
+            ignore_errors: yes
+        - name: Create VRFs
+          nxos_vrf:
+            vrf: "{{ item.vrfname }}"
+            vni: "300{{ item.l3vnivlan }}"
+            rd: auto
+            state: present
+            provider: "{{ nxapi }}"
+          when: 
+            - item.service == "l2l3vni" 
+            - extension == "l3vni" 
+          with_items: "{{ services }}"
+        - set_fact:
+            ipl0underlay: "{{ underlay['loopbacks'][0]['ipaddress'] }}/{{ underlay['loopbacks'][0]['mask'] }}"
+        - name: Admin up test Loopback in VRF
+          nxos_interface:
+            name: "Loopback{{ item.l3vnivlan }}"
+            admin_state: up
+            provider: "{{ nxapi }}"
+          when:
+            - item.service == "l2l3vni"
+            - ipl0underlay is defined
+            - extension == "l3vni"
+          with_items: "{{ services }}"
+        - name: Assign test Loopback to VRF
+          nxos_vrf_interface:
+            vrf: "{{ item.vrfname }}"
+            interface: "Loopback{{ item.l3vnivlan }}"
+            provider: "{{ nxapi }}"
+          when: 
+            - item.service == "l2l3vni"
+            - ipl0underlay is defined
+            - extension == "l3vni"
+          with_items: "{{ services }}"
+        - name: Assign IP addresses to test Loopback
+          nxos_ip_interface:
+            interface: "Loopback{{ item.l3vnivlan }}"
+            addr: "{{ ipl0underlay.split('/')[0] }}"
+            mask: "{{ ipl0underlay.split('/')[1] }}"
+            tag: "{{ bgp_localas }}"
+            provider: "{{ nxapi }}"
+          when:
+            - item.service == "l2l3vni"
+            - ipl0underlay is defined
+            - extension == "l3vni"
+          with_items: "{{ services }}"
+        - name: Announce tenant l2vpn evpn into BGP
+          nxos_bgp_af:
+            asn: "{{ bgp_localas }}"
+            vrf: "{{ item.vrf }}"
+            afi: "{{ item.afi }}"
+            safi: "{{ item.safi }}"
+            advertise_l2vpn_evpn: "true"
+            redistribute: [['direct', 'RMAP-REDIST-DIRECT']]
+            provider: "{{ nxapi }}"
+          with_items: "{{ bgp_address_families }}"
+          when: 
+            - bgp_localas is defined
+            - extension == "l3vni"
+        - name: Bring up L3VNI SVIF
+          nxos_interface:
+            interface: "vlan{{ item.l3vnivlan }}"
+            admin_state: up
+            provider: "{{ nxapi }}"
+          when:
+            - item.service == "l2l3vni"
+            - extension == "l3vni"
+          with_items: "{{ services }}"
+        - name: Assign L3VNI SVI to VRF
+          nxos_vrf_interface:
+            vrf: "{{ item.vrfname }}"
+            interface: "vlan{{ item.l3vnivlan }}"
+            provider: "{{ nxapi }}"
+          when: 
+            - item.service == "l2l3vni"
+            - extension == "l3vni"
+          with_items: "{{ services }}" 
+        - name: Create L3VNI SVI 
+          nxos_interface:
+            name: "vlan{{ item.l3vnivlan }}"
+            ip_forward: enable
+            mtu: "{{ item.mtu }}"
+            provider: "{{ nxapi }}"
+          when: 
+            - item.service == "l2l3vni"
+            - extension == "l3vni"
+          with_items: "{{ services }}"  
+        - name: Associate L3VNI SVI to Overlay
+          nxos_vxlan_vtep_vni:
+            interface: nve1
+            vni: "300{{ item.l3vnivlan }}"
+            assoc_vrf: true
+            provider: "{{ nxapi }}"
+          when: 
+            - item.service == "l2l3vni" 
+            - extension == "l3vni" 
+          with_items: "{{ services }}"
+      rescue:
+        - set_fact:
+            trigger_msg: True
+            send_msg: "{{ playbook_name }} -  error configure on {{ inventory_hostname }}"
+          changed_when: True
+          notify: notify using spark
+        - name: Rollback to checkpoint
+          nxos_rollback:
+            rollback_to: "{{checkpoint_file_name}}"
+            provider: "{{ nxapi }}"

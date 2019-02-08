@@ -1,0 +1,13 @@
+- name: Configure VLAN
+  hosts: [leaf,bleaf]
+  connection: local
+  gather_facts: no
+  roles:
+    - common
+  tasks:
+    - name: Create VLAN
+      nxos_vlan:
+        vlan_id: 666
+        admin_state: up
+        name: test
+        provider: "{{ nxapi }}"

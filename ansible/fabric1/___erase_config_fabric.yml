@@ -1,0 +1,13 @@
+---
+- name: Erase config Fabric
+  hosts: [leaf,bleaf,bgw,spine]
+  any_errors_fatal: true
+  connection: local
+  gather_facts: no
+  roles:
+    - common
+    #- configure_loopbacks
+- import_playbook: check_connectivity.yml
+- import_playbook: save_and_backup_configuration.yml
+- import_playbook: write_erase_reload.yml
+...

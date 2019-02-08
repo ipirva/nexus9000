@@ -1,0 +1,30 @@
+---
+- name: Configure VLAN example
+  hosts: [leaf,bleaf,bgw,spine]
+  connection: local
+  gather_facts: no
+  roles:
+    - common
+    #- configure_loopbacks
+  vars:
+    vlanid: "{{ vlanid }}"
+  tasks:
+    - name: Create VLAN config
+      nxos_config:
+        lines:
+          - "vlan {{ vlanid }}"
+          - "name test"
+        save_when: modified
+        provider: "{{ nxapi }}"
+      #debugger: always
+      tags:
+        - configure_vlan_config
+    - name: Create VLAN module
+      nxos_vlan:
+        vlan_id: "{{ vlanid }}"
+        admin_state: up
+        name: test2
+        provider: "{{ nxapi }}"
+      #debugger: always
+      tags:
+        - configure_vlan_module

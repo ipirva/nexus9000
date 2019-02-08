@@ -1,0 +1,26 @@
+---
+- name: Rollback to checkpoint
+  hosts: [leaf,bleaf,bgw,spine]
+  connection: local
+  gather_facts: no
+  roles:
+    - common
+    #- configure_loopbacks
+  vars:
+    file: "{{ file }}"
+  tasks:
+    - name: Rollback to checkpoint
+      nxos_rollback:
+        rollback_to: "{{ file }}"
+        provider: "{{ nxapi }}"
+      tags:
+        - rollto_checkpoint
+    - name: Workaround scheduler
+      nxos_config:
+        lines:
+          - job name switchalive
+          - time start now repeat 0:0:1
+        parents: scheduler schedule name every_minute
+        provider: "{{ nxapi }}"
+      tags:
+        - workaround_scheduler

@@ -1,0 +1,9 @@
+---
+- name: Change NXOS software
+  hosts: [leaf,bleaf,bgw,spine]
+  connection: local
+  gather_facts: no
+  roles:
+    - common
+- import_playbook: check_nxos_image.yml
+- import_playbook: install_new_nxos.yml

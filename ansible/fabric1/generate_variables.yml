@@ -1,0 +1,105 @@
+---
+- name: Generate common variables
+  hosts: [spine,leaf,bgw,bleaf]
+  connection: local
+  gather_facts: no
+  vars:
+    generate_p2p:
+      nbr_networks: 20
+      network_size: 30
+      network_pool: 10.1.1.0/24
+    generate_rid:
+      nbr_networks: 20
+      network_size: 32
+      network_pool: 10.10.10.0/24
+  roles:
+    - generate_p2p_subnets
+    - generate_rid_subnets
+
+- name: Generate Leaf variables
+  hosts: [leaf,bleaf,bgw]
+  connection: local
+  gather_facts: no
+  vars:
+    generate_vtep:
+      nbr_networks: 20
+      network_size: 32
+      network_pool: 10.100.100.0/24
+  roles:
+    - generate_vtep_subnets
+
+- name: Generate Underlay variables
+  hosts: [spine,leaf,bleaf,bgw]
+  connection: local
+  gather_facts: no
+  pre_tasks:
+    - include_vars: "{{ topology_file }}"
+  vars:
+    ospf:
+      routerid: Loopback0
+      process: underlay
+      area: 0
+      cost: 1
+    pim:
+      interface: Loopback254
+      address: 10.154.154.154
+      mask: 32
+      description: pim_rp_anycast
+      grouplist: 233.1.0.0/24 
+  roles:
+    - generate_underlay_variables
+
+- name: Generate Overlay variables
+  hosts: [spine,leaf,bleaf,bgw]
+  connection: local
+  gather_facts: no
+  pre_tasks:
+    - include_vars: "{{ topology_file }}"
+  vars:
+    bgp:
+      asn: 65100
+      routerid: Loopback0
+      updatesource: Loopback0
+    overlay:
+      anycastgwmac: "aaaa.aaaa.aaaa"
+      nvesourceifx: Loopback1
+      nveholddown: 60
+  roles:
+    - generate_overlay_variables
+
+- name: Generate BGW variables
+  hosts: [bgw]
+  connection: local
+  gather_facts: no
+  pre_tasks:
+    - include_vars: "{{ topology_file }}"
+  vars:
+   siteid: 1000
+   asn: 65100
+   vip:
+     ip: 172.16.1.100
+     mask: 32
+     description: "Multi-Site VIP Loopback"
+     interface: loopback100
+   bgp:
+     1:
+       neighbor: 10.20.10.3
+       asn: 65200
+       multihop: 5
+       updatesource: Loopback0
+     2:
+       neighbor: 10.20.10.4
+       asn: 65200
+       multihop: 5
+       updatesource: Loopback0
+   wan:
+     n9k-bgw-1:
+       1:
+         local_ip: 172.16.1.2
+         remote_ip: 172.16.1.1
+         mask: 30
+         mtu: 9216
+         local_if: Eth1/20 
+         asn: 65000
+  roles:
+    - generate_bgw_variables

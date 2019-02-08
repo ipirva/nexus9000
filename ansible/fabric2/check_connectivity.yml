@@ -1,0 +1,25 @@
+- name: Check connectivity
+  hosts: [spine,leaf,bleaf,bgw]
+  connection: local
+  gather_facts: no
+  strategy: free
+  roles:
+    - common
+  vars:
+    playbook_name: "Check connectivity"
+  tasks:
+    - block:
+      - name: NXOS Facts API
+        register: facts
+        nxos_facts:
+          gather_subset:
+            - hardware
+          provider: "{{ nxapi }}" 
+      - copy: content="{{ facts | to_nice_json }}" dest="/tmp/{{inventory_hostname}}_facts.json"
+      rescue:
+        - set_fact:
+            trigger_msg: True
+            send_msg: "{{ playbook_name }} -  error configure on {{ inventory_hostname }}"
+          changed_when: True
+          notify: notify using spark
+...

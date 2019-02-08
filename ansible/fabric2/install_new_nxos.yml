@@ -1,0 +1,74 @@
+---
+- name: Install new NXOS
+  hosts: [leaf,bleaf,bgw,spine]
+  connection: local
+  gather_facts: no
+  roles:
+    - common
+  vars:
+    playbook_name: "Install new NXOS"
+  
+  tasks:
+    - name: Check installed NXOS version before upgrade
+      nxos_command:
+        commands:
+          - show version
+        provider: "{{ nxapi }}"
+      register: output
+    - set_fact:
+        e_file_name: "{{ output['stdout'][0]['kick_file_name'].split('///')[1] }}"
+
+    - name: Print installed NXOS
+      debug: msg="{{output['stdout'][0]['kickstart_ver_str']}}"
+      # kick_file_name
+      # "kick_file_name": "bootflash:///nxos.9.2.1.bin",
+    - name: Upgrade the switch
+      debug: msg=Upgrading Switch "{{ inventory_hostname }}"
+
+    - block:
+        - name: Time and date
+          debug: msg="{{lookup('pipe','date +%Y-%m-%d-%H-%M-%S')}}"
+        - name: Install new NXOS
+          nxos_install_os:
+            system_image_file: "{{ file_name }}"
+            #system_image_file: nxos.9.2.2.bin
+            provider: "{{ nxapi }}"
+          when:
+            - output['stdout'][0]['kickstart_ver_str'] != kickstart
+      rescue:
+        - name: Install old NXOS
+          nxos_install_os:
+            system_image_file: "{{ e_file_name }}"
+            provider: "{{ nxapi }}"
+      always:
+        - name: Wait for device to go DOWN
+          wait_for:
+            port: 80
+            state: stopped
+            timeout: 60
+            delay: 10
+            host: "{{ inventory_hostname }}"
+        - name: Wait for device to come back UP
+          wait_for:
+            port: 80
+            state: started
+            timeout: 600
+            delay: 10
+            host: "{{ inventory_hostname }}"
+        - name: Time and date
+          debug: msg="{{lookup('pipe','date +%Y-%m-%d-%H-%M-%S')}}"
+
+    - name: Check installed NXOS after upgrade
+      nxos_command:
+        commands:
+          - show version
+        provider: "{{ nxapi }}"
+      register: output
+
+    - name: Print installed NXOS
+      debug: msg="{{output['stdout'][0]['kickstart_ver_str']}}"
+
+    - name: Assert that the device is running the desired image
+      assert:
+        that:
+          - output['stdout'][0]['kickstart_ver_str'] == "{{ kickstart }}"

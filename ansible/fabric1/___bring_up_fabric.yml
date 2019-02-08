@@ -1,0 +1,20 @@
+---
+- name: Bring up the Fabric
+  hosts: [leaf,bleaf,bgw,spine]
+  connection: local
+  gather_facts: no
+  roles:
+    - common
+    #- configure_loopbacks
+- import_playbook: generate_variables.yml
+- import_playbook: generate_vpc_variables.yml
+- import_playbook: check_connectivity.yml
+- import_playbook: configure_leaf_features.yml
+- import_playbook: configure_spine_features.yml
+- import_playbook: configure_underlay.yml
+- import_playbook: configure_underlay_bgw.yml
+- import_playbook: configure_vpc.yml
+- import_playbook: configure_overlay.yml
+- import_playbook: configure_overlay_bgw.yml
+- import_playbook: save_and_backup_configuration.yml
+...

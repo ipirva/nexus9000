@@ -1,0 +1,298 @@
+!Command: show running-config
+!Running configuration last done at: Fri Sep 21 18:19:09 2018
+!Time: Fri Sep 21 18:19:57 2018
+
+version 9.2(1) Bios:version 07.61 
+power redundancy-mode combined force
+
+hostname n9k-bleaf-4
+vdc n9k-bleaf-4 id 1
+  limit-resource vlan minimum 16 maximum 4094
+  limit-resource vrf minimum 2 maximum 4096
+  limit-resource port-channel minimum 0 maximum 511
+  limit-resource u4route-mem minimum 248 maximum 248
+  limit-resource u6route-mem minimum 96 maximum 96
+  limit-resource m4route-mem minimum 58 maximum 58
+  limit-resource m6route-mem minimum 8 maximum 8
+
+feature nxapi
+feature bash-shell
+feature scp-server
+cfs eth distribute
+feature scheduler
+nv overlay evpn
+feature ospf
+feature bgp
+feature pim
+feature netconf
+feature interface-vlan
+feature vn-segment-vlan-based
+feature lacp
+feature lldp
+feature nv overlay
+
+username admin password 5 $5$5EAPtIHn$NCsXXlvG959CNcLz2EC9zY1zTmznvf/RQW5kRY1WKw9  role network-admin
+username cisco password 5 $5$9HKVH0gB$lDZnHEkm3FHCiD7kKEGvrJA4PWXGYUO9ArK8DTcVTL0  role network-operator
+username provisioning password 5 !  role network-admin
+username provisioning sshkey ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDEzTj3pqWUEgXStd5D3RHeXSVfqEDL5rkVqg5IVnyz0mYu/ZgMLF1ZHkp9ATXCub+uRpsAMAOm5OTnl8VbXiuzImAhB2BWYYsiULiTSXnW5Dz2In1FPU8cSdfUcim/Ppr1ie03MztdRskznO7J44UpA1abdF+V0rh2ssbUT4U0vayuuMD2hIOLxtR/CWB4YA9QSZubIXsiBI/sLqi9QD0F2U3tcNLmcTlY4+1TFe9hRZCm3UIfEkUgdO4zHCRKn3lsf318J4AajsGD9R9JQV77r/1744YE/lfClfr5bg/TxQUavSVYV1baAOfPogfFtIAx2Llr8V3Qx/oxXXIqgicF root@provisioning_nexus
+username provisioning_bash password 5 !  role network-admin
+username provisioning_bash shelltype bash
+username provisioning_bash sshkey ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDEzTj3pqWUEgXStd5D3RHeXSVfqEDL5rkVqg5IVnyz0mYu/ZgMLF1ZHkp9ATXCub+uRpsAMAOm5OTnl8VbXiuzImAhB2BWYYsiULiTSXnW5Dz2In1FPU8cSdfUcim/Ppr1ie03MztdRskznO7J44UpA1abdF+V0rh2ssbUT4U0vayuuMD2hIOLxtR/CWB4YA9QSZubIXsiBI/sLqi9QD0F2U3tcNLmcTlY4+1TFe9hRZCm3UIfEkUgdO4zHCRKn3lsf318J4AajsGD9R9JQV77r/1744YE/lfClfr5bg/TxQUavSVYV1baAOfPogfFtIAx2Llr8V3Qx/oxXXIqgicF root@provisioning_nexus
+ssh login-attempts 5
+
+no ip domain-lookup
+ip name-server 72.163.5.201 173.38.200.100 64.102.6.247 171.70.168.183 173.36.131.10 144.254.71.184 use-vrf management
+system default switchport
+logging message interface type ethernet description
+copp profile strict
+rmon event 1 description FATAL(1) owner PMON@FATAL
+rmon event 2 description CRITICAL(2) owner PMON@CRITICAL
+rmon event 3 description ERROR(3) owner PMON@ERROR
+rmon event 4 description WARNING(4) owner PMON@WARNING
+rmon event 5 description INFORMATION(5) owner PMON@INFO
+ntp server 173.38.201.67 use-vrf management
+ntp logging
+
+fabric forwarding anycast-gateway-mac aaaa.aaaa.aaaa
+ip pim rp-address 10.254.254.254 group-list 233.2.0.0/24
+ip pim ssm range 232.0.0.0/8
+vlan 1
+
+no cdp enable
+vrf context management
+  ip route 0.0.0.0/0 192.168.100.1
+port-profile type ethernet ethernet-default
+  link debounce time 0
+  load-interval counter 1 5
+  mtu 9216
+  state enabled
+port-profile type port-channel po-default
+  load-interval counter 1 5
+  mtu 9216
+  state enabled
+port-profile type port-channel po-trunk
+  load-interval counter 1 5
+  mtu 9216
+  switchport mode trunk
+  switchport trunk allowed vlan 1-4094
+  state enabled
+
+nxapi http port 80
+nxapi use-vrf management
+
+
+interface Vlan1
+
+interface nve1
+  no shutdown
+  description nve_interface
+  host-reachability protocol bgp
+  advertise virtual-rmac
+  source-interface loopback1
+  source-interface hold-down-time 60
+
+interface Ethernet1/1
+
+interface Ethernet1/2
+
+interface Ethernet1/3
+
+interface Ethernet1/4
+
+interface Ethernet1/5
+
+interface Ethernet1/6
+
+interface Ethernet1/7
+
+interface Ethernet1/8
+
+interface Ethernet1/9
+
+interface Ethernet1/10
+
+interface Ethernet1/11
+
+interface Ethernet1/12
+
+interface Ethernet1/13
+
+interface Ethernet1/14
+
+interface Ethernet1/15
+
+interface Ethernet1/16
+
+interface Ethernet1/17
+
+interface Ethernet1/18
+
+interface Ethernet1/19
+
+interface Ethernet1/20
+
+interface Ethernet1/21
+
+interface Ethernet1/22
+
+interface Ethernet1/23
+
+interface Ethernet1/24
+
+interface Ethernet1/25
+
+interface Ethernet1/26
+
+interface Ethernet1/27
+
+interface Ethernet1/28
+
+interface Ethernet1/29
+
+interface Ethernet1/30
+
+interface Ethernet1/31
+
+interface Ethernet1/32
+
+interface Ethernet1/33
+
+interface Ethernet1/34
+
+interface Ethernet1/35
+
+interface Ethernet1/36
+
+interface Ethernet1/37
+
+interface Ethernet1/38
+
+interface Ethernet1/39
+
+interface Ethernet1/40
+
+interface Ethernet1/41
+
+interface Ethernet1/42
+
+interface Ethernet1/43
+
+interface Ethernet1/44
+
+interface Ethernet1/45
+
+interface Ethernet1/46
+
+interface Ethernet1/47
+
+interface Ethernet1/48
+
+interface Ethernet1/49
+  description to_n9k-spine-2_ethernet1/33
+  no switchport
+  mtu 9216
+  ip address 10.2.1.10/30
+  ip ospf network point-to-point
+  ip router ospf underlay area 0.0.0.0
+  ip pim sparse-mode
+  no shutdown
+
+interface Ethernet1/50
+
+interface Ethernet1/51
+
+interface Ethernet1/52
+
+interface Ethernet1/53
+
+interface Ethernet1/54
+
+interface mgmt0
+  description MGMT IF
+  ip address dhcp
+  vrf member management
+
+interface loopback0
+  description loopback_underlay
+  ip address 10.20.10.2/32
+  ip router ospf underlay area 0.0.0.0
+  ip pim sparse-mode
+
+interface loopback1
+  description loopback_underlay
+  ip address 10.200.200.2/32
+  ip router ospf underlay area 0.0.0.0
+  ip pim sparse-mode
+line console
+  exec-timeout 0
+  speed 115200
+line vty
+  exec-timeout 0
+boot nxos bootflash:/nxos.9.2.1.bin 
+router ospf underlay
+  router-id 10.20.10.2
+  log-adjacency-changes detail
+router bgp 65200
+  router-id 10.20.10.2
+  address-family l2vpn evpn
+    advertise-pip
+  neighbor 10.20.10.0
+    remote-as 65200
+    update-source loopback0
+    address-family ipv4 unicast
+      send-community
+      send-community extended
+    address-family l2vpn evpn
+      send-community
+      send-community extended
+personality
+  track startup-state
+  track data bootflash:/.rpmstore/config
+  track data bootflash:/.rpmstore/patching/localrepo
+  track data bootflash:/.rpmstore/patching/patchrepo
+  track data bootflash:/.rpmstore/pypirepo
+  track data bootflash:/.rpmstore/thirdparty
+  track data bootflash:/home/admin/scripts/
+  track data bootflash:/ssh_pub_keys/*.pub
+no system default switchport shutdown
+event manager applet switch_up_trigger
+  description "Announce the switch alive"
+  event syslog pattern ": System ready$"
+  action 10.0 cli run bash sudo /bin/bash /bootflash/home/admin/scripts/switch_alive.sh
+  action 12.0 syslog priority informational msg RUN BASH /home/admin/scripts/switch_alive.sh
+  action 15.0 event-default
+logging server 192.168.100.2 6 use-vrf management facility local6
+logging timestamp milliseconds
+logging level local6 6
+logging origin-id hostname
+
+scheduler logfile size 1024
+
+
+scheduler job name personalitybck
+personality backup bootflash:/personality_file.tar
+ run bash sudo  /bin/bash /bootflash/home/admin/scripts/personality_file_bck.sh         
+ 
+end-job
+
+scheduler job name personalityclean
+run bash /bin/bash /bootflash/home/admin/scripts/personality_file_clean.sh
+ 
+end-job
+
+scheduler job name switchalive
+run bash sudo /bin/bash /bootflash/home/admin/scripts/switch_alive.sh
+ 
+end-job
+
+scheduler schedule name dailybck
+  job name personalitybck
+  time daily 19:00
+
+scheduler schedule name every_minute
+  job name switchalive
+  time start 2018:09:21:17:10 repeat 0:0:1
+
+scheduler schedule name weeklyclean
+  job name personalityclean
+  time weekly 01:19:00

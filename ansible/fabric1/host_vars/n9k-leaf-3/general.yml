@@ -1,0 +1,5 @@
+---
+license_file_path: "/tftpboot/licenses/{{ inventory_hostname }}"
+license_file_name:
+  - "MDS20170809075525186.lic"
+...

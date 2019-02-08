@@ -1,0 +1,17 @@
+---
+- name: Rollback to checkpoint
+  hosts: [leaf,bleaf,bgw,spine]
+  connection: local
+  gather_facts: no
+  roles:
+    - common
+    #- configure_loopbacks
+  vars:
+    file: "{{ file }}"
+  tasks:
+    - name: Rollback to checkpoint
+      nxos_rollback:
+        rollback_to: "{{ file }}"
+        provider: "{{ nxapi }}"
+      tags:
+        - rollto_checkpoint
