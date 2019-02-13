@@ -8,15 +8,21 @@
 
   vars:
     playbook_name: "Configure overlay service"
+    file: "{{ file }}"
   tasks:
     - name: Include service variables
       include_vars:
-        file: /root/ansible/fabric1/service_test.yml
+        file: "{{ file }}"
+        #/root/ansible/fabric1/service_test.yml
     - shell: uuidgen
       with_sequence: count=1
       register: uuid_list
     - set_fact:
         checkpoint_file_name: "{{uuid_list['results'][0]['stdout_lines'][0]}}.cfg"
+    - name: Display checkpoint file name
+      debug:
+        msg:
+          - "Use the checkpoint file {{ checkpoint_file_name }} to rollback to the configuration before service."
     - name: Create checkpoint
       nxos_rollback:
         checkpoint_file: "{{checkpoint_file_name}}"
@@ -109,7 +115,7 @@
           nxos_vxlan_vtep_vni:
             interface: nve1
             vni: "3000{{ item.vlanid }}"
-            multicast_group: "232.2.0.{{ 255 % item.vlanid | round | int if (item.vlanid > 255) else item.vlanid }}"
+            multicast_group: "232.1.0.{{ 255 % item.vlanid | round | int if (item.vlanid > 255) else item.vlanid }}"
             suppress_arp: true
             provider: "{{ nxapi }}"
           with_items: "{{ services }}"  

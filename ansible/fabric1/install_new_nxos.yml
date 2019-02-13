@@ -45,7 +45,7 @@
           wait_for:
             port: 80
             state: stopped
-            timeout: 60
+            timeout: 500
             delay: 10
             host: "{{ inventory_hostname }}"
         - name: Wait for device to come back UP

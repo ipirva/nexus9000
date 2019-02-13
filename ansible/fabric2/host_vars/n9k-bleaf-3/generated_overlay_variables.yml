@@ -5,7 +5,7 @@ overlay:
     updatesource: Loopback0
   bgpneighbors:
     neighbor:
-      - 10.20.10.0
+      - { rid: 10.20.10.0, desc: n9k-spine-2 }
   overlay:
     anycastgwmac: aaaa.aaaa.aaaa
     nvesourceifx: Loopback1

@@ -35,6 +35,7 @@
             provider: "{{ nxapi }}"
           when:
             - output['stdout'][0]['kickstart_ver_str'] != kickstart
+          register: installed
       rescue:
         - name: Install old NXOS
           nxos_install_os:
@@ -45,9 +46,10 @@
           wait_for:
             port: 80
             state: stopped
-            timeout: 60
+            timeout: 500
             delay: 10
             host: "{{ inventory_hostname }}"
+          when: installed.changed
         - name: Wait for device to come back UP
           wait_for:
             port: 80
@@ -55,6 +57,7 @@
             timeout: 600
             delay: 10
             host: "{{ inventory_hostname }}"
+          when: installed.changed
         - name: Time and date
           debug: msg="{{lookup('pipe','date +%Y-%m-%d-%H-%M-%S')}}"
 

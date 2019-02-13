@@ -83,9 +83,10 @@
       - name: Configure BGP EVPN NEI
         nxos_bgp_neighbor:
           asn: "{{ overlay['bgpparameters']['asn'] }}"
-          neighbor: "{{ item }}"
+          neighbor: "{{ item['rid'] }}"
           remote_as: "{{ overlay['bgpparameters']['asn'] }}"
           update_source: "{{ overlay['bgpparameters']['updatesource'] }}"
+          description: "{{ item['desc'] }}"
           state: present
           provider: "{{ nxapi }}"
         with_items: "{{ overlay['bgpneighbors']['neighbor'] }}"
@@ -97,7 +98,7 @@
       - name: Configure BGP EVPN
         nxos_bgp_neighbor_af:
           asn: "{{ overlay['bgpparameters']['asn'] }}"
-          neighbor: "{{ item }}"
+          neighbor: "{{ item['rid'] }}"
           afi: l2vpn
           safi: evpn
           send_community: both
@@ -112,7 +113,7 @@
       - name: Configure BGP IPv4
         nxos_bgp_neighbor_af:
           asn: "{{ overlay['bgpparameters']['asn'] }}"
-          neighbor: "{{ item }}"
+          neighbor: "{{ item['rid'] }}"
           afi: ipv4
           safi: unicast
           send_community: both
@@ -127,7 +128,7 @@
       - name: Configure BGP EVPN RR
         nxos_bgp_neighbor_af:
           asn: "{{ overlay['bgpparameters']['asn'] }}"
-          neighbor: "{{ item }}"
+          neighbor: "{{ item['rid'] }}"
           afi: l2vpn
           safi: evpn
           route_reflector_client: "true"
@@ -143,7 +144,7 @@
       - name: Configure BGP IPv4 RR
         nxos_bgp_neighbor_af:
           asn: "{{ overlay['bgpparameters']['asn'] }}"
-          neighbor: "{{ item }}"
+          neighbor: "{{ item['rid'] }}"
           afi: ipv4
           safi: unicast
           route_reflector_client: "true"

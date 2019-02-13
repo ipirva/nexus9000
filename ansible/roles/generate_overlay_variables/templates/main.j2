@@ -11,14 +11,14 @@ overlay:
 {% if host in groups["spine"] %}
 {% for id,host in nodes.iteritems() %}
 {% if host in leafs %}
-      - {{ rid[id]['ip'] }}
+      - { rid: {{ rid[id]['ip'] }}, desc: {{ host }} }
 {% endif %}
 {% endfor %}
 {% endif %}
 {% if host in leafs %}
 {% for id,host in nodes.iteritems() %}
 {% if host in groups["spine"] %}
-      - {{ rid[id]['ip'] }}
+      - { rid: {{ rid[id]['ip'] }}, desc: {{ host }} }
 {% endif %}
 {% endfor %}
 {% endif %}

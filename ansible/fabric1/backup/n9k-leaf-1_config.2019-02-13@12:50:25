@@ -1,15 +1,15 @@
 !Command: show running-config
-!Running configuration last done at: Tue Feb  5 23:34:29 2019
-!Time: Tue Feb  5 23:34:57 2019
+!Running configuration last done at: Wed Feb 13 13:07:55 2019
+!Time: Wed Feb 13 13:09:30 2019
 
-version 9.2(1) Bios:version 07.51 
+version 9.2(2) Bios:version 07.65 
 power redundancy-mode combined force
 
-hostname n9k-spine-1
-vdc n9k-spine-1 id 1
+hostname n9k-leaf-1
+vdc n9k-leaf-1 id 1
   limit-resource vlan minimum 16 maximum 4094
   limit-resource vrf minimum 2 maximum 4096
-  limit-resource port-channel minimum 0 maximum 256
+  limit-resource port-channel minimum 0 maximum 511
   limit-resource u4route-mem minimum 248 maximum 248
   limit-resource u6route-mem minimum 96 maximum 96
   limit-resource m4route-mem minimum 58 maximum 58
@@ -25,7 +25,13 @@ feature ospf
 feature bgp
 feature pim
 feature netconf
+feature interface-vlan
+feature vn-segment-vlan-based
+feature lacp
+feature vpc
 feature lldp
+feature nv overlay
+feature telemetry
 
 feature ngoam
 
@@ -39,7 +45,8 @@ username provisioning_bash sshkey ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDEzTj3pq
 ssh login-attempts 5
 
 no ip domain-lookup
-ip name-server 72.163.5.201 173.38.200.100 64.102.6.247 171.70.168.183 173.36.131.10 144.254.71.184 use-vrf management
+ip name-server 173.36.131.10 144.254.71.184 use-vrf management
+system default switchport
 logging message interface type ethernet description
 copp profile strict
 rmon event 1 description FATAL(1) owner PMON@FATAL
@@ -50,14 +57,31 @@ rmon event 5 description INFORMATION(5) owner PMON@INFO
 ntp server 173.38.201.67 use-vrf management
 ntp logging
 
+fabric forwarding anycast-gateway-mac aaaa.aaaa.aaaa
 ip pim rp-address 10.154.154.154 group-list 233.1.0.0/24
 ip pim ssm range 232.0.0.0/8
-ip pim anycast-rp 10.154.154.154 10.10.10.0
-vlan 1
+vlan 1,123
+vlan 123
+  name vpc_undelay
 
 no cdp enable
+route-map RMAP-REDIST-DIRECT permit 10
+  match tag 65100 
+route-map RMAP-REDIST-STATIC permit 10
+  match tag 65100 
 vrf context management
   ip route 0.0.0.0/0 192.168.100.1
+vpc domain 1000
+  peer-switch
+  role priority 200
+  system-priority 200
+  peer-keepalive destination 192.168.100.164 source 192.168.100.167
+  delay restore 150
+  peer-gateway
+  layer3 peer-router
+  auto-recovery
+  ipv6 nd synchronize
+  ip arp synchronize
 port-profile type ethernet ethernet-default
   link debounce time 0
   load-interval counter 1 5
@@ -77,6 +101,32 @@ port-profile type port-channel po-trunk
 nxapi http port 80
 nxapi use-vrf management
 
+
+interface Vlan1
+  no ip redirects
+  no ipv6 redirects
+
+interface Vlan123
+  no shutdown
+  no ip redirects
+  ip address 192.168.168.1/30
+  no ipv6 redirects
+  ip ospf network point-to-point
+  ip router ospf underlay area 0.0.0.0
+  ip pim sparse-mode
+
+interface port-channel4096
+  switchport mode trunk
+  spanning-tree port type network
+  vpc peer-link
+
+interface nve1
+  no shutdown
+  description nve_interface
+  host-reachability protocol bgp
+  advertise virtual-rmac
+  source-interface loopback1
+  source-interface hold-down-time 60
 
 interface Ethernet1/1
 
@@ -174,77 +224,31 @@ interface Ethernet1/47
 
 interface Ethernet1/48
 
-interface Ethernet2/1
-  description to_n9k-bleaf-1_ethernet1/49
+interface Ethernet1/49
+  description to_n9k-spine-1_ethernet2/2
   no switchport
   mtu 9216
-  ip address 10.1.1.17/30
+  ip address 10.1.1.2/30
   ip ospf network point-to-point
   ip router ospf underlay area 0.0.0.0
   ip pim sparse-mode
   no shutdown
 
-interface Ethernet2/2
-  description to_n9k-leaf-1_ethernet1/49
-  no switchport
-  mtu 9216
-  ip address 10.1.1.1/30
-  ip ospf network point-to-point
-  ip router ospf underlay area 0.0.0.0
-  ip pim sparse-mode
-  no shutdown
+interface Ethernet1/50
 
-interface Ethernet2/3
-  description to_n9k-leaf-2_ethernet1/49
-  no switchport
-  mtu 9216
-  ip address 10.1.1.5/30
-  ip ospf network point-to-point
-  ip router ospf underlay area 0.0.0.0
-  ip pim sparse-mode
-  no shutdown
+interface Ethernet1/51
+  description vpc_pl_to_n9k-leaf-2
+  switchport mode trunk
+  channel-group 4096 mode active
 
-interface Ethernet2/4
+interface Ethernet1/52
+  description vpc_pl_to_n9k-leaf-2
+  switchport mode trunk
+  channel-group 4096 mode active
 
-interface Ethernet2/5
+interface Ethernet1/53
 
-interface Ethernet2/6
-
-interface Ethernet2/7
-
-interface Ethernet2/8
-
-interface Ethernet2/9
-
-interface Ethernet2/10
-  description to_n9k-bgw-1_ethernet1/49
-  no switchport
-  mtu 9216
-  ip address 10.1.1.21/30
-  ip ospf network point-to-point
-  ip router ospf underlay area 0.0.0.0
-  ip pim sparse-mode
-  no shutdown
-
-interface Ethernet2/11
-  description to_n9k-leaf-3_ethernet1/54
-  no switchport
-  mtu 9216
-  ip address 10.1.1.9/30
-  ip ospf network point-to-point
-  ip router ospf underlay area 0.0.0.0
-  ip pim sparse-mode
-  no shutdown
-
-interface Ethernet2/12
-  description to_n9k-leaf-4_ethernet1/54
-  no switchport
-  mtu 9216
-  ip address 10.1.1.13/30
-  ip ospf network point-to-point
-  ip router ospf underlay area 0.0.0.0
-  ip pim sparse-mode
-  no shutdown
+interface Ethernet1/54
 
 interface mgmt0
   description MGMT IF
@@ -253,13 +257,14 @@ interface mgmt0
 
 interface loopback0
   description loopback_underlay
-  ip address 10.10.10.0/32 tag 65100
+  ip address 10.10.10.2/32 tag 65100
   ip router ospf underlay area 0.0.0.0
   ip pim sparse-mode
 
-interface loopback254
-  description pim_rp_anycast
-  ip address 10.154.154.154/32
+interface loopback1
+  description loopback_underlay
+  ip address 10.100.100.2/32 tag 65100
+  ip address 10.154.154.0/32 secondary
   ip router ospf underlay area 0.0.0.0
   ip pim sparse-mode
 line console
@@ -267,79 +272,24 @@ line console
   speed 115200
 line vty
   exec-timeout 0
-boot nxos bootflash:/nxos.9.2.1.bin 
+boot nxos bootflash:/nxos.9.2.2.bin 
+no feature signature-verification
 router ospf underlay
-  router-id 10.10.10.0
+  router-id 10.10.10.2
   log-adjacency-changes detail
 router bgp 65100
-  router-id 10.10.10.0
+  router-id 10.10.10.2
   address-family l2vpn evpn
-  neighbor 10.10.10.1
+    advertise-pip
+  neighbor 10.10.10.0
     remote-as 65100
     update-source loopback0
     address-family ipv4 unicast
       send-community
       send-community extended
-      route-reflector-client
     address-family l2vpn evpn
       send-community
       send-community extended
-      route-reflector-client
-  neighbor 10.10.10.2
-    remote-as 65100
-    update-source loopback0
-    address-family ipv4 unicast
-      send-community
-      send-community extended
-      route-reflector-client
-    address-family l2vpn evpn
-      send-community
-      send-community extended
-      route-reflector-client
-  neighbor 10.10.10.3
-    remote-as 65100
-    update-source loopback0
-    address-family ipv4 unicast
-      send-community
-      send-community extended
-      route-reflector-client
-    address-family l2vpn evpn
-      send-community
-      send-community extended
-      route-reflector-client
-  neighbor 10.10.10.4
-    remote-as 65100
-    update-source loopback0
-    address-family ipv4 unicast
-      send-community
-      send-community extended
-      route-reflector-client
-    address-family l2vpn evpn
-      send-community
-      send-community extended
-      route-reflector-client
-  neighbor 10.10.10.5
-    remote-as 65100
-    update-source loopback0
-    address-family ipv4 unicast
-      send-community
-      send-community extended
-      route-reflector-client
-    address-family l2vpn evpn
-      send-community
-      send-community extended
-      route-reflector-client
-  neighbor 10.10.10.6
-    remote-as 65100
-    update-source loopback0
-    address-family ipv4 unicast
-      send-community
-      send-community extended
-      route-reflector-client
-    address-family l2vpn evpn
-      send-community
-      send-community extended
-      route-reflector-client
 personality
   track startup-state
   track data bootflash:/.rpmstore/config
@@ -349,12 +299,14 @@ personality
   track data bootflash:/.rpmstore/thirdparty
   track data bootflash:/home/admin/scripts/
   track data bootflash:/ssh_pub_keys/*.pub
+no system default switchport shutdown
 event manager applet switch_up_trigger
   description "Announce the switch alive"
   event syslog pattern ": System ready$"
   action 10.0 cli run bash sudo /bin/bash /bootflash/home/admin/scripts/switch_alive.sh
   action 12.0 syslog priority informational msg RUN BASH /home/admin/scripts/switch_alive.sh
   action 15.0 event-default
+
 logging server 192.168.100.2 6 use-vrf management facility local6
 logging timestamp milliseconds
 logging level local6 6
@@ -365,7 +317,7 @@ scheduler logfile size 1024
 
 scheduler job name personalitybck
 personality backup bootflash:/personality_file.tar
- run bash sudo  /bin/bash /bootflash/home/admin/scripts/personality_file_bck.sh         
+ run bash sudo  /bin/bash /bootflash/home/admin/scripts/personality_file_bck.sh          
  
 end-job
 
@@ -385,8 +337,40 @@ scheduler schedule name dailybck
 
 scheduler schedule name every_minute
   job name switchalive
-  time start 2019:02:05:23:30 repeat 0:0:1
+  time start 2019:02:13:13:09 repeat 0:0:1
 
 scheduler schedule name weeklyclean
   job name personalityclean
   time weekly 01:19:00
+
+ngoam install acl
+telemetry
+  destination-profile
+    use-vrf management
+  destination-group 1
+    ip address 192.168.100.180 port 50007 protocol gRPC encoding GPB 
+  sensor-group 1
+    path sys/bd depth unbounded
+  sensor-group 2
+    path sys/ospf/inst-underlay depth unbounded
+  sensor-group 3
+    path sys/intf depth unbounded
+  sensor-group 4
+    path sys/bgp/inst/dom-default/af-l2vpn-evpn depth unbounded query-condition rsp-foreign-subtree=ephemeral
+  sensor-group 5
+    path sys/eps depth unbounded query-condition rsp-foreign-subtree=ephemeral
+  sensor-group 6
+    path sys/mac/table depth unbounded
+  sensor-group 7
+    path sys/bgp/inst/dom-default depth unbounded
+  sensor-group 8
+    path sys/mgmt-[mgmt0] depth unbounded
+  subscription 1
+    dst-grp 1
+    snsr-grp 1 sample-interval 1000
+    snsr-grp 2 sample-interval 1000
+    snsr-grp 3 sample-interval 1000
+    snsr-grp 4 sample-interval 1000
+    snsr-grp 5 sample-interval 1000
+    snsr-grp 6 sample-interval 1000
+    snsr-grp 7 sample-interval 1000

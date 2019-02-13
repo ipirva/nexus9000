@@ -1,6 +1,6 @@
 ---
 - name: Save and Backup the configuration
-  hosts: [leaf, bleaf, spine]
+  hosts: [leaf,bleaf,bgw,spine]
   connection: local
   gather_facts: no
   strategy: free

@@ -1,12 +1,12 @@
 !Command: show running-config
-!Running configuration last done at: Tue Feb  5 23:34:30 2019
-!Time: Tue Feb  5 23:34:51 2019
+!Running configuration last done at: Wed Feb 13 13:07:54 2019
+!Time: Wed Feb 13 13:09:27 2019
 
-version 9.2(1) Bios:version 07.59 
+version 9.2(2) Bios:version 07.65 
 power redundancy-mode combined force
 
-hostname n9k-leaf-3
-vdc n9k-leaf-3 id 1
+hostname n9k-leaf-2
+vdc n9k-leaf-2 id 1
   limit-resource vlan minimum 16 maximum 4094
   limit-resource vrf minimum 2 maximum 4096
   limit-resource port-channel minimum 0 maximum 511
@@ -31,6 +31,7 @@ feature lacp
 feature vpc
 feature lldp
 feature nv overlay
+feature telemetry
 
 feature ngoam
 
@@ -44,7 +45,6 @@ username provisioning_bash sshkey ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDEzTj3pq
 ssh login-attempts 5
 
 no ip domain-lookup
-ip name-server 72.163.5.201 173.38.200.100 64.102.6.247 171.70.168.183 173.36.131.10 144.254.71.184 use-vrf management
 system default switchport
 logging message interface type ethernet description
 copp profile strict
@@ -74,7 +74,7 @@ vpc domain 1000
   peer-switch
   role priority 200
   system-priority 200
-  peer-keepalive destination 192.168.100.174 source 192.168.100.173
+  peer-keepalive destination 192.168.100.167 source 192.168.100.164
   delay restore 150
   peer-gateway
   layer3 peer-router
@@ -108,7 +108,7 @@ interface Vlan1
 interface Vlan123
   no shutdown
   no ip redirects
-  ip address 192.168.168.5/30
+  ip address 192.168.168.2/30
   no ipv6 redirects
   ip ospf network point-to-point
   ip router ospf underlay area 0.0.0.0
@@ -224,30 +224,30 @@ interface Ethernet1/47
 interface Ethernet1/48
 
 interface Ethernet1/49
-  description vpc_pl_to_n9k-leaf-4
-  switchport mode trunk
-  channel-group 4096 mode active
-
-interface Ethernet1/50
-
-interface Ethernet1/51
-  description vpc_pl_to_n9k-leaf-4
-  switchport mode trunk
-  channel-group 4096 mode active
-
-interface Ethernet1/52
-
-interface Ethernet1/53
-
-interface Ethernet1/54
-  description to_n9k-spine-1_ethernet2/11
+  description to_n9k-spine-1_ethernet2/3
   no switchport
   mtu 9216
-  ip address 10.1.1.10/30
+  ip address 10.1.1.6/30
   ip ospf network point-to-point
   ip router ospf underlay area 0.0.0.0
   ip pim sparse-mode
   no shutdown
+
+interface Ethernet1/50
+
+interface Ethernet1/51
+  description vpc_pl_to_n9k-leaf-1
+  switchport mode trunk
+  channel-group 4096 mode active
+
+interface Ethernet1/52
+  description vpc_pl_to_n9k-leaf-1
+  switchport mode trunk
+  channel-group 4096 mode active
+
+interface Ethernet1/53
+
+interface Ethernet1/54
 
 interface mgmt0
   description MGMT IF
@@ -256,14 +256,14 @@ interface mgmt0
 
 interface loopback0
   description loopback_underlay
-  ip address 10.10.10.4/32 tag 65100
+  ip address 10.10.10.3/32 tag 65100
   ip router ospf underlay area 0.0.0.0
   ip pim sparse-mode
 
 interface loopback1
   description loopback_underlay
-  ip address 10.100.100.4/32 tag 65100
-  ip address 10.154.154.1/32 secondary
+  ip address 10.100.100.3/32 tag 65100
+  ip address 10.154.154.0/32 secondary
   ip router ospf underlay area 0.0.0.0
   ip pim sparse-mode
 line console
@@ -271,12 +271,12 @@ line console
   speed 115200
 line vty
   exec-timeout 0
-boot nxos bootflash:/nxos.9.2.1.bin 
+boot nxos bootflash:/nxos.9.2.2.bin 
 router ospf underlay
-  router-id 10.10.10.4
+  router-id 10.10.10.3
   log-adjacency-changes detail
 router bgp 65100
-  router-id 10.10.10.4
+  router-id 10.10.10.3
   address-family l2vpn evpn
     advertise-pip
   neighbor 10.10.10.0
@@ -304,6 +304,7 @@ event manager applet switch_up_trigger
   action 10.0 cli run bash sudo /bin/bash /bootflash/home/admin/scripts/switch_alive.sh
   action 12.0 syslog priority informational msg RUN BASH /home/admin/scripts/switch_alive.sh
   action 15.0 event-default
+
 logging server 192.168.100.2 6 use-vrf management facility local6
 logging timestamp milliseconds
 logging level local6 6
@@ -334,10 +335,40 @@ scheduler schedule name dailybck
 
 scheduler schedule name every_minute
   job name switchalive
-  time start 2019:02:05:23:30 repeat 0:0:1
+  time start 2019:02:13:13:09 repeat 0:0:1
 
 scheduler schedule name weeklyclean
   job name personalityclean
   time weekly 01:19:00
 
 ngoam install acl
+telemetry
+  destination-profile
+    use-vrf management
+  destination-group 1
+    ip address 192.168.100.180 port 50007 protocol gRPC encoding GPB 
+  sensor-group 1
+    path sys/bd depth unbounded
+  sensor-group 2
+    path sys/ospf/inst-underlay depth unbounded
+  sensor-group 3
+    path sys/intf depth unbounded
+  sensor-group 4
+    path sys/bgp/inst/dom-default/af-l2vpn-evpn depth unbounded query-condition rsp-foreign-subtree=ephemeral
+  sensor-group 5
+    path sys/eps depth unbounded query-condition rsp-foreign-subtree=ephemeral
+  sensor-group 6
+    path sys/mac/table depth unbounded
+  sensor-group 7
+    path sys/bgp/inst/dom-default depth unbounded
+  sensor-group 8
+    path sys/mgmt-[mgmt0] depth unbounded
+  subscription 1
+    dst-grp 1
+    snsr-grp 1 sample-interval 1000
+    snsr-grp 2 sample-interval 1000
+    snsr-grp 3 sample-interval 1000
+    snsr-grp 4 sample-interval 1000
+    snsr-grp 5 sample-interval 1000
+    snsr-grp 6 sample-interval 1000
+    snsr-grp 7 sample-interval 1000

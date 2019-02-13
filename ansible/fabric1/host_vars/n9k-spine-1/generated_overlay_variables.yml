@@ -5,12 +5,12 @@ overlay:
     updatesource: Loopback0
   bgpneighbors:
     neighbor:
-      - 10.10.10.1
-      - 10.10.10.2
-      - 10.10.10.3
-      - 10.10.10.4
-      - 10.10.10.5
-      - 10.10.10.6
+      - { rid: 10.10.10.1, desc: n9k-bleaf-1 }
+      - { rid: 10.10.10.2, desc: n9k-leaf-1 }
+      - { rid: 10.10.10.3, desc: n9k-leaf-2 }
+      - { rid: 10.10.10.4, desc: n9k-leaf-3 }
+      - { rid: 10.10.10.5, desc: n9k-leaf-4 }
+      - { rid: 10.10.10.6, desc: n9k-bgw-1 }
   overlay:
     anycastgwmac: aaaa.aaaa.aaaa
     nvesourceifx: Loopback1

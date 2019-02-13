@@ -1,0 +1,30 @@
+telemetry
+  destination-profile
+    use-vrf management
+  destination-group 1
+    ip address 192.168.100.180 port 50007 protocol gRPC encoding GPB
+  sensor-group 1
+    path sys/bd depth unbounded
+  sensor-group 2
+    path sys/ospf/inst-underlay depth unbounded
+  sensor-group 3
+    path sys/intf depth unbounded
+  sensor-group 4
+    path sys/bgp/inst/dom-default/af-l2vpn-evpn depth unbounded query-condition rsp-foreign-subtree=ephemeral
+  sensor-group 5
+    path sys/eps depth unbounded query-condition rsp-foreign-subtree=ephemeral
+  sensor-group 6
+    path sys/mac/table depth unbounded
+  sensor-group 7
+    path sys/bgp/inst/dom-default depth unbounded
+  sensor-group 8
+    path sys/mgmt-[mgmt0] depth unbounded
+  subscription 1
+    dst-grp 1
+    snsr-grp 1 sample-interval 1000
+    snsr-grp 2 sample-interval 1000
+    snsr-grp 3 sample-interval 1000
+    snsr-grp 4 sample-interval 1000
+    snsr-grp 5 sample-interval 1000
+    snsr-grp 6 sample-interval 1000
+    snsr-grp 7 sample-interval 1000

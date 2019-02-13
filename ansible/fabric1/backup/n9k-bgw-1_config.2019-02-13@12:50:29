@@ -1,12 +1,12 @@
 !Command: show running-config
-!Running configuration last done at: Tue Feb  5 23:27:31 2019
-!Time: Tue Feb  5 23:27:46 2019
+!Running configuration last done at: Wed Feb 13 13:07:56 2019
+!Time: Wed Feb 13 13:09:34 2019
 
-version 9.2(1) Bios:version 07.56 
+version 9.2(2) Bios:version 07.65 
 power redundancy-mode combined force
 
-hostname n9k-leaf-5
-vdc n9k-leaf-5 id 1
+hostname n9k-bgw-1
+vdc n9k-bgw-1 id 1
   limit-resource vlan minimum 16 maximum 4094
   limit-resource vrf minimum 2 maximum 4096
   limit-resource port-channel minimum 0 maximum 511
@@ -30,6 +30,7 @@ feature vn-segment-vlan-based
 feature lacp
 feature lldp
 feature nv overlay
+feature telemetry
 
 feature ngoam
 
@@ -47,6 +48,8 @@ ip name-server 72.163.5.201 173.38.200.100 64.102.6.247 171.70.168.183 173.36.13
 system default switchport
 logging message interface type ethernet description
 copp profile strict
+evpn multisite border-gateway 1000
+  delay-restore time 300
 rmon event 1 description FATAL(1) owner PMON@FATAL
 rmon event 2 description CRITICAL(2) owner PMON@CRITICAL
 rmon event 3 description ERROR(3) owner PMON@ERROR
@@ -56,15 +59,13 @@ ntp server 173.38.201.67 use-vrf management
 ntp logging
 
 fabric forwarding anycast-gateway-mac aaaa.aaaa.aaaa
-ip pim rp-address 10.254.254.254 group-list 233.2.0.0/24
+ip pim rp-address 10.154.154.154 group-list 233.1.0.0/24
 ip pim ssm range 232.0.0.0/8
 vlan 1
 
 no cdp enable
 route-map RMAP-REDIST-DIRECT permit 10
-  match tag 65200 
-route-map RMAP-REDIST-STATIC permit 10
-  match tag 65200 
+  match tag 65100 
 vrf context management
   ip route 0.0.0.0/0 192.168.100.1
 port-profile type ethernet ethernet-default
@@ -93,9 +94,9 @@ interface nve1
   no shutdown
   description nve_interface
   host-reachability protocol bgp
-  advertise virtual-rmac
   source-interface loopback1
   source-interface hold-down-time 60
+  multisite border-gateway interface loopback100
 
 interface Ethernet1/1
 
@@ -136,6 +137,13 @@ interface Ethernet1/18
 interface Ethernet1/19
 
 interface Ethernet1/20
+  description Ethernet1/2-wan
+  no switchport
+  mtu 9216
+  medium p2p
+  ip address 172.16.1.2/30 tag 65100
+  evpn multisite dci-tracking
+  no shutdown
 
 interface Ethernet1/21
 
@@ -194,13 +202,15 @@ interface Ethernet1/47
 interface Ethernet1/48
 
 interface Ethernet1/49
-  description to_n9k-spine-2_ethernet1/31
+  description to_n9k-spine-1_ethernet2/10
   no switchport
   mtu 9216
-  ip address 10.2.1.2/30
+  medium p2p
+  ip address 10.1.1.22/30
   ip ospf network point-to-point
   ip router ospf underlay area 0.0.0.0
   ip pim sparse-mode
+  evpn multisite fabric-tracking
   no shutdown
 
 interface Ethernet1/50
@@ -220,30 +230,38 @@ interface mgmt0
 
 interface loopback0
   description loopback_underlay
-  ip address 10.20.10.2/32 tag 65200
+  ip address 10.10.10.6/32 tag 65100
   ip router ospf underlay area 0.0.0.0
   ip pim sparse-mode
 
 interface loopback1
   description loopback_underlay
-  ip address 10.200.200.2/32 tag 65200
+  ip address 10.100.100.6/32 tag 65100
   ip router ospf underlay area 0.0.0.0
   ip pim sparse-mode
+
+interface loopback100
+  description Multi-Site VIP Loopback
+  ip address 172.16.1.100/32 tag 65100
+  ip router ospf underlay area 0.0.0.0
 line console
   exec-timeout 0
   speed 115200
 line vty
   exec-timeout 0
-boot nxos bootflash:/nxos.9.2.1.bin 
+boot nxos bootflash:/nxos.9.2.2.bin 
 router ospf underlay
-  router-id 10.20.10.2
+  router-id 10.10.10.6
   log-adjacency-changes detail
-router bgp 65200
-  router-id 10.20.10.2
+router bgp 65100
+  router-id 10.10.10.6
+  address-family ipv4 unicast
+    redistribute direct route-map RMAP-REDIST-DIRECT
+    maximum-paths 4
   address-family l2vpn evpn
-    advertise-pip
-  neighbor 10.20.10.0
-    remote-as 65200
+  neighbor 10.10.10.0
+    remote-as 65100
+    description n9k-spine-1
     update-source loopback0
     address-family ipv4 unicast
       send-community
@@ -251,6 +269,28 @@ router bgp 65200
     address-family l2vpn evpn
       send-community
       send-community extended
+  neighbor 10.20.10.3
+    remote-as 65200
+    update-source loopback0
+    ebgp-multihop 5
+    peer-type fabric-external
+    address-family l2vpn evpn
+      send-community
+      send-community extended
+      rewrite-evpn-rt-asn
+  neighbor 10.20.10.4
+    remote-as 65200
+    update-source loopback0
+    ebgp-multihop 5
+    peer-type fabric-external
+    address-family l2vpn evpn
+      send-community
+      send-community extended
+      rewrite-evpn-rt-asn
+  neighbor 172.16.1.1
+    remote-as 65000
+    update-source Ethernet1/20
+    address-family ipv4 unicast
 personality
   track startup-state
   track data bootflash:/.rpmstore/config
@@ -267,6 +307,7 @@ event manager applet switch_up_trigger
   action 10.0 cli run bash sudo /bin/bash /bootflash/home/admin/scripts/switch_alive.sh
   action 12.0 syslog priority informational msg RUN BASH /home/admin/scripts/switch_alive.sh
   action 15.0 event-default
+
 logging server 192.168.100.2 6 use-vrf management facility local6
 logging timestamp milliseconds
 logging level local6 6
@@ -297,10 +338,40 @@ scheduler schedule name dailybck
 
 scheduler schedule name every_minute
   job name switchalive
-  time start 2019:02:05:18:52 repeat 0:0:1
+  time start 2019:02:13:13:09 repeat 0:0:1
 
 scheduler schedule name weeklyclean
   job name personalityclean
   time weekly 01:19:00
 
 ngoam install acl
+telemetry
+  destination-profile
+    use-vrf management
+  destination-group 1
+    ip address 192.168.100.180 port 50007 protocol gRPC encoding GPB 
+  sensor-group 1
+    path sys/bd depth unbounded
+  sensor-group 2
+    path sys/ospf/inst-underlay depth unbounded
+  sensor-group 3
+    path sys/intf depth unbounded
+  sensor-group 4
+    path sys/bgp/inst/dom-default/af-l2vpn-evpn depth unbounded query-condition rsp-foreign-subtree=ephemeral
+  sensor-group 5
+    path sys/eps depth unbounded query-condition rsp-foreign-subtree=ephemeral
+  sensor-group 6
+    path sys/mac/table depth unbounded
+  sensor-group 7
+    path sys/bgp/inst/dom-default depth unbounded
+  sensor-group 8
+    path sys/mgmt-[mgmt0] depth unbounded
+  subscription 1
+    dst-grp 1
+    snsr-grp 1 sample-interval 1000
+    snsr-grp 2 sample-interval 1000
+    snsr-grp 3 sample-interval 1000
+    snsr-grp 4 sample-interval 1000
+    snsr-grp 5 sample-interval 1000
+    snsr-grp 6 sample-interval 1000
+    snsr-grp 7 sample-interval 1000

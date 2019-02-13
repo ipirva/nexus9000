@@ -1,7 +1,9 @@
 services:
   - { vlanid: 100, service: l2l3vni, mtu: 9216, vrfname: VRFA, l3vnivlan: 10, gwipaddress: "192.168.123.254/24" }
+  - { vlanid: 200, service: l2l3vni, mtu: 9216, vrfname: VRFB, l3vnivlan: 20, gwipaddress: "192.168.223.254/24" }
 l2service:
   interfaces:
     - { name: Eth1/1, mtu: 9216, mode: trunk, vlanid: "100,200", native: 1 }
 bgp_address_families:
   - { vrf: VRFA, afi: ipv4, safi: unicast }
+  - { vrf: VRFB, afi: ipv4, safi: unicast }

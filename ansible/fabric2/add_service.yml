@@ -8,15 +8,21 @@
 
   vars:
     playbook_name: "Configure overlay service"
+    file: "{{ file }}"
   tasks:
     - name: Include service variables
       include_vars:
-        file: /root/ansible/fabric2/service_test.yml
+        file: "{{ file }}"
+        #/root/ansible/fabric1/service_test.yml
     - shell: uuidgen
       with_sequence: count=1
       register: uuid_list
     - set_fact:
         checkpoint_file_name: "{{uuid_list['results'][0]['stdout_lines'][0]}}.cfg"
+    - name: Display checkpoint file name
+      debug:
+        msg:
+          - "Use the checkpoint file {{ checkpoint_file_name }} to rollback to the configuration before service."
     - name: Create checkpoint
       nxos_rollback:
         checkpoint_file: "{{checkpoint_file_name}}"

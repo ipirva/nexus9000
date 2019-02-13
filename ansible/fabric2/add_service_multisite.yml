@@ -8,12 +8,13 @@
 
   vars:
     playbook_name: "Extend overlay service"
-    extension: "{{ extension }}"
+    file: "{{ file }}"
 
   tasks:
     - name: Include service variables
       include_vars:
-        file: /root/ansible/fabric2/service_test.yml
+        file: "{{ file }}"
+        # /root/ansible/fabric1/service_test.yml
     - shell: uuidgen
       with_sequence: count=1
       register: uuid_list
@@ -33,8 +34,6 @@
             admin_state: up
             provider: "{{ nxapi }}"
           with_items: "{{ services }}"
-          when:
-            - extension == "l2vni"
         - name: Configure L3VNI VLAN and map it to L3VNI
           nxos_vlan:
             vlan_id: "{{ item.l3vnivlan }}"
@@ -43,7 +42,6 @@
             provider: "{{ nxapi }}"
           when: 
             - item.service == "l2l3vni" 
-            - extension == "l3vni"
           with_items: "{{ services }}"
         - name: Add L2VNI to overlay NVE1
           nxos_vxlan_vtep_vni:
@@ -53,8 +51,6 @@
             suppress_arp: true
             provider: "{{ nxapi }}"
           with_items: "{{ services }}" 
-          when:
-            - extension == "l2vni"
         - name: Add ingress replication multisite to overlay NVE1
           nxos_config:
             lines: "multisite ingress-replication"
@@ -63,8 +59,6 @@
               - "member vni 3000{{ item.vlanid }}"
             provider: "{{ nxapi }}"
           with_items: "{{ services }}"
-          when:
-            - extension == "l2vni"
         - name: EVPN configuration
           nxos_evpn_vni:
             vni: "3000{{ item.vlanid }}"
@@ -72,8 +66,6 @@
             route_target_both: auto
             provider: "{{ nxapi }}"
           with_items: "{{ services }}"
-          when:
-            - extension == "l2vni"
         - name: Obtain the router BGP local AS
           nxos_command:
             commands:
@@ -93,7 +85,6 @@
             provider: "{{ nxapi }}"
           when: 
             - item.service == "l2l3vni" 
-            - extension == "l3vni" 
           with_items: "{{ services }}"
         - set_fact:
             ipl0underlay: "{{ underlay['loopbacks'][0]['ipaddress'] }}/{{ underlay['loopbacks'][0]['mask'] }}"
@@ -105,7 +96,6 @@
           when:
             - item.service == "l2l3vni"
             - ipl0underlay is defined
-            - extension == "l3vni"
           with_items: "{{ services }}"
         - name: Assign test Loopback to VRF
           nxos_vrf_interface:
@@ -115,7 +105,6 @@
           when: 
             - item.service == "l2l3vni"
             - ipl0underlay is defined
-            - extension == "l3vni"
           with_items: "{{ services }}"
         - name: Assign IP addresses to test Loopback
           nxos_ip_interface:
@@ -127,7 +116,6 @@
           when:
             - item.service == "l2l3vni"
             - ipl0underlay is defined
-            - extension == "l3vni"
           with_items: "{{ services }}"
         - name: Announce tenant l2vpn evpn into BGP
           nxos_bgp_af:
@@ -141,7 +129,6 @@
           with_items: "{{ bgp_address_families }}"
           when: 
             - bgp_localas is defined
-            - extension == "l3vni"
         - name: Bring up L3VNI SVIF
           nxos_interface:
             interface: "vlan{{ item.l3vnivlan }}"
@@ -149,7 +136,6 @@
             provider: "{{ nxapi }}"
           when:
             - item.service == "l2l3vni"
-            - extension == "l3vni"
           with_items: "{{ services }}"
         - name: Assign L3VNI SVI to VRF
           nxos_vrf_interface:
@@ -158,7 +144,6 @@
             provider: "{{ nxapi }}"
           when: 
             - item.service == "l2l3vni"
-            - extension == "l3vni"
           with_items: "{{ services }}" 
         - name: Create L3VNI SVI 
           nxos_interface:
@@ -168,7 +153,6 @@
             provider: "{{ nxapi }}"
           when: 
             - item.service == "l2l3vni"
-            - extension == "l3vni"
           with_items: "{{ services }}"  
         - name: Associate L3VNI SVI to Overlay
           nxos_vxlan_vtep_vni:
@@ -178,7 +162,6 @@
             provider: "{{ nxapi }}"
           when: 
             - item.service == "l2l3vni" 
-            - extension == "l3vni" 
           with_items: "{{ services }}"
       rescue:
         - set_fact:

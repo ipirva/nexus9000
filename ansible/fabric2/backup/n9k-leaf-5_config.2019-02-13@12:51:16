@@ -1,12 +1,12 @@
 !Command: show running-config
-!Running configuration last done at: Fri Sep 21 18:22:18 2018
-!Time: Fri Sep 21 18:23:06 2018
+!Running configuration last done at: Wed Feb 13 13:08:56 2019
+!Time: Wed Feb 13 13:10:21 2019
 
-version 9.2(1) Bios:version 07.59 
+version 9.2(2) Bios:version 07.65 
 power redundancy-mode combined force
 
-hostname n9k-bleaf-5
-vdc n9k-bleaf-5 id 1
+hostname n9k-leaf-5
+vdc n9k-leaf-5 id 1
   limit-resource vlan minimum 16 maximum 4094
   limit-resource vrf minimum 2 maximum 4096
   limit-resource port-channel minimum 0 maximum 511
@@ -17,19 +17,11 @@ vdc n9k-bleaf-5 id 1
 
 feature nxapi
 feature bash-shell
-feature scp-server
 cfs eth distribute
 feature scheduler
-nv overlay evpn
-feature ospf
-feature bgp
-feature pim
 feature netconf
-feature interface-vlan
-feature vn-segment-vlan-based
-feature lacp
 feature lldp
-feature nv overlay
+feature telemetry
 
 username admin password 5 $5$5EAPtIHn$NCsXXlvG959CNcLz2EC9zY1zTmznvf/RQW5kRY1WKw9  role network-admin
 username cisco password 5 $5$9HKVH0gB$lDZnHEkm3FHCiD7kKEGvrJA4PWXGYUO9ArK8DTcVTL0  role network-operator
@@ -41,7 +33,6 @@ username provisioning_bash sshkey ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDEzTj3pq
 ssh login-attempts 5
 
 no ip domain-lookup
-ip name-server 72.163.5.201 173.38.200.100 64.102.6.247 171.70.168.183 173.36.131.10 144.254.71.184 use-vrf management
 system default switchport
 logging message interface type ethernet description
 copp profile strict
@@ -53,43 +44,15 @@ rmon event 5 description INFORMATION(5) owner PMON@INFO
 ntp server 173.38.201.67 use-vrf management
 ntp logging
 
-fabric forwarding anycast-gateway-mac aaaa.aaaa.aaaa
-ip pim rp-address 10.254.254.254 group-list 233.2.0.0/24
-ip pim ssm range 232.0.0.0/8
 vlan 1
 
 no cdp enable
 vrf context management
   ip route 0.0.0.0/0 192.168.100.1
-port-profile type ethernet ethernet-default
-  link debounce time 0
-  load-interval counter 1 5
-  mtu 9216
-  state enabled
-port-profile type port-channel po-default
-  load-interval counter 1 5
-  mtu 9216
-  state enabled
-port-profile type port-channel po-trunk
-  load-interval counter 1 5
-  mtu 9216
-  switchport mode trunk
-  switchport trunk allowed vlan 1-4094
-  state enabled
 
 nxapi http port 80
 nxapi use-vrf management
 
-
-interface Vlan1
-
-interface nve1
-  no shutdown
-  description nve_interface
-  host-reachability protocol bgp
-  advertise virtual-rmac
-  source-interface loopback1
-  source-interface hold-down-time 60
 
 interface Ethernet1/1
 
@@ -188,14 +151,6 @@ interface Ethernet1/47
 interface Ethernet1/48
 
 interface Ethernet1/49
-  description to_n9k-spine-2_ethernet1/34
-  no switchport
-  mtu 9216
-  ip address 10.2.1.14/30
-  ip ospf network point-to-point
-  ip router ospf underlay area 0.0.0.0
-  ip pim sparse-mode
-  no shutdown
 
 interface Ethernet1/50
 
@@ -211,40 +166,13 @@ interface mgmt0
   description MGMT IF
   ip address dhcp
   vrf member management
-
-interface loopback0
-  description loopback_underlay
-  ip address 10.20.10.3/32
-  ip router ospf underlay area 0.0.0.0
-  ip pim sparse-mode
-
-interface loopback1
-  description loopback_underlay
-  ip address 10.200.200.3/32
-  ip router ospf underlay area 0.0.0.0
-  ip pim sparse-mode
 line console
   exec-timeout 0
   speed 115200
 line vty
   exec-timeout 0
-boot nxos bootflash:/nxos.9.2.1.bin 
-router ospf underlay
-  router-id 10.20.10.3
-  log-adjacency-changes detail
-router bgp 65200
-  router-id 10.20.10.3
-  address-family l2vpn evpn
-    advertise-pip
-  neighbor 10.20.10.0
-    remote-as 65200
-    update-source loopback0
-    address-family ipv4 unicast
-      send-community
-      send-community extended
-    address-family l2vpn evpn
-      send-community
-      send-community extended
+boot nxos bootflash:/nxos.9.2.2.bin 
+no feature signature-verification
 personality
   track startup-state
   track data bootflash:/.rpmstore/config
@@ -261,6 +189,7 @@ event manager applet switch_up_trigger
   action 10.0 cli run bash sudo /bin/bash /bootflash/home/admin/scripts/switch_alive.sh
   action 12.0 syslog priority informational msg RUN BASH /home/admin/scripts/switch_alive.sh
   action 15.0 event-default
+
 logging server 192.168.100.2 6 use-vrf management facility local6
 logging timestamp milliseconds
 logging level local6 6
@@ -271,7 +200,7 @@ scheduler logfile size 1024
 
 scheduler job name personalitybck
 personality backup bootflash:/personality_file.tar
- run bash sudo  /bin/bash /bootflash/home/admin/scripts/personality_file_bck.sh         
+ run bash sudo  /bin/bash /bootflash/home/admin/scripts/personality_file_bck.sh          
  
 end-job
 
@@ -291,8 +220,38 @@ scheduler schedule name dailybck
 
 scheduler schedule name every_minute
   job name switchalive
-  time start 2018:09:21:17:07 repeat 0:0:1
-
+  
 scheduler schedule name weeklyclean
   job name personalityclean
   time weekly 01:19:00
+
+telemetry
+  destination-profile
+    use-vrf management
+  destination-group 1
+    ip address 192.168.100.180 port 50007 protocol gRPC encoding GPB 
+  sensor-group 1
+    path sys/bd depth unbounded
+  sensor-group 2
+    path sys/ospf/inst-underlay depth unbounded
+  sensor-group 3
+    path sys/intf depth unbounded
+  sensor-group 4
+    path sys/bgp/inst/dom-default/af-l2vpn-evpn depth unbounded query-condition rsp-foreign-subtree=ephemeral
+  sensor-group 5
+    path sys/eps depth unbounded query-condition rsp-foreign-subtree=ephemeral
+  sensor-group 6
+    path sys/mac/table depth unbounded
+  sensor-group 7
+    path sys/bgp/inst/dom-default depth unbounded
+  sensor-group 8
+    path sys/mgmt-[mgmt0] depth unbounded
+  subscription 1
+    dst-grp 1
+    snsr-grp 1 sample-interval 5000
+    snsr-grp 2 sample-interval 5000
+    snsr-grp 3 sample-interval 5000
+    snsr-grp 4 sample-interval 5000
+    snsr-grp 5 sample-interval 5000
+    snsr-grp 6 sample-interval 5000
+    snsr-grp 7 sample-interval 5000

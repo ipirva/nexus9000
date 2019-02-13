@@ -38,7 +38,7 @@
     - name: Copy File to the Switch
       nxos_file_copy:
         local_file: "{{ folder }}/{{ file_name }}"
-        provider: "{{ nxapi }}"
+        provider: "{{ cli }}"
       when: 
         - output['stdout'][0]['file_content_md5sum'] is not defined or 
           (output['stdout'][0]['file_content_md5sum'] is defined and output['stdout'][0]['file_content_md5sum'] != md5)

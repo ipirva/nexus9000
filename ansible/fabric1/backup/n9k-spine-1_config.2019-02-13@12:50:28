@@ -1,15 +1,15 @@
 !Command: show running-config
-!Running configuration last done at: Fri Sep 21 18:19:09 2018
-!Time: Fri Sep 21 18:19:57 2018
+!Running configuration last done at: Wed Feb 13 13:07:55 2019
+!Time: Wed Feb 13 13:09:32 2019
 
-version 9.2(1) Bios:version 07.61 
+version 9.2(2) Bios:version 07.65 
 power redundancy-mode combined force
 
-hostname n9k-bleaf-4
-vdc n9k-bleaf-4 id 1
+hostname n9k-spine-1
+vdc n9k-spine-1 id 1
   limit-resource vlan minimum 16 maximum 4094
   limit-resource vrf minimum 2 maximum 4096
-  limit-resource port-channel minimum 0 maximum 511
+  limit-resource port-channel minimum 0 maximum 256
   limit-resource u4route-mem minimum 248 maximum 248
   limit-resource u6route-mem minimum 96 maximum 96
   limit-resource m4route-mem minimum 58 maximum 58
@@ -25,11 +25,9 @@ feature ospf
 feature bgp
 feature pim
 feature netconf
-feature interface-vlan
-feature vn-segment-vlan-based
-feature lacp
 feature lldp
-feature nv overlay
+
+feature ngoam
 
 username admin password 5 $5$5EAPtIHn$NCsXXlvG959CNcLz2EC9zY1zTmznvf/RQW5kRY1WKw9  role network-admin
 username cisco password 5 $5$9HKVH0gB$lDZnHEkm3FHCiD7kKEGvrJA4PWXGYUO9ArK8DTcVTL0  role network-operator
@@ -41,8 +39,6 @@ username provisioning_bash sshkey ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDEzTj3pq
 ssh login-attempts 5
 
 no ip domain-lookup
-ip name-server 72.163.5.201 173.38.200.100 64.102.6.247 171.70.168.183 173.36.131.10 144.254.71.184 use-vrf management
-system default switchport
 logging message interface type ethernet description
 copp profile strict
 rmon event 1 description FATAL(1) owner PMON@FATAL
@@ -53,9 +49,9 @@ rmon event 5 description INFORMATION(5) owner PMON@INFO
 ntp server 173.38.201.67 use-vrf management
 ntp logging
 
-fabric forwarding anycast-gateway-mac aaaa.aaaa.aaaa
-ip pim rp-address 10.254.254.254 group-list 233.2.0.0/24
+ip pim rp-address 10.154.154.154 group-list 233.1.0.0/24
 ip pim ssm range 232.0.0.0/8
+ip pim anycast-rp 10.154.154.154 10.10.10.0
 vlan 1
 
 no cdp enable
@@ -80,16 +76,6 @@ port-profile type port-channel po-trunk
 nxapi http port 80
 nxapi use-vrf management
 
-
-interface Vlan1
-
-interface nve1
-  no shutdown
-  description nve_interface
-  host-reachability protocol bgp
-  advertise virtual-rmac
-  source-interface loopback1
-  source-interface hold-down-time 60
 
 interface Ethernet1/1
 
@@ -187,25 +173,77 @@ interface Ethernet1/47
 
 interface Ethernet1/48
 
-interface Ethernet1/49
-  description to_n9k-spine-2_ethernet1/33
+interface Ethernet2/1
+  description to_n9k-bleaf-1_ethernet1/49
   no switchport
   mtu 9216
-  ip address 10.2.1.10/30
+  ip address 10.1.1.17/30
   ip ospf network point-to-point
   ip router ospf underlay area 0.0.0.0
   ip pim sparse-mode
   no shutdown
 
-interface Ethernet1/50
+interface Ethernet2/2
+  description to_n9k-leaf-1_ethernet1/49
+  no switchport
+  mtu 9216
+  ip address 10.1.1.1/30
+  ip ospf network point-to-point
+  ip router ospf underlay area 0.0.0.0
+  ip pim sparse-mode
+  no shutdown
 
-interface Ethernet1/51
+interface Ethernet2/3
+  description to_n9k-leaf-2_ethernet1/49
+  no switchport
+  mtu 9216
+  ip address 10.1.1.5/30
+  ip ospf network point-to-point
+  ip router ospf underlay area 0.0.0.0
+  ip pim sparse-mode
+  no shutdown
 
-interface Ethernet1/52
+interface Ethernet2/4
 
-interface Ethernet1/53
+interface Ethernet2/5
 
-interface Ethernet1/54
+interface Ethernet2/6
+
+interface Ethernet2/7
+
+interface Ethernet2/8
+
+interface Ethernet2/9
+
+interface Ethernet2/10
+  description to_n9k-bgw-1_ethernet1/49
+  no switchport
+  mtu 9216
+  ip address 10.1.1.21/30
+  ip ospf network point-to-point
+  ip router ospf underlay area 0.0.0.0
+  ip pim sparse-mode
+  no shutdown
+
+interface Ethernet2/11
+  description to_n9k-leaf-3_ethernet1/54
+  no switchport
+  mtu 9216
+  ip address 10.1.1.9/30
+  ip ospf network point-to-point
+  ip router ospf underlay area 0.0.0.0
+  ip pim sparse-mode
+  no shutdown
+
+interface Ethernet2/12
+  description to_n9k-leaf-4_ethernet1/54
+  no switchport
+  mtu 9216
+  ip address 10.1.1.13/30
+  ip ospf network point-to-point
+  ip router ospf underlay area 0.0.0.0
+  ip pim sparse-mode
+  no shutdown
 
 interface mgmt0
   description MGMT IF
@@ -214,13 +252,13 @@ interface mgmt0
 
 interface loopback0
   description loopback_underlay
-  ip address 10.20.10.2/32
+  ip address 10.10.10.0/32 tag 65100
   ip router ospf underlay area 0.0.0.0
   ip pim sparse-mode
 
-interface loopback1
-  description loopback_underlay
-  ip address 10.200.200.2/32
+interface loopback254
+  description pim_rp_anycast
+  ip address 10.154.154.154/32
   ip router ospf underlay area 0.0.0.0
   ip pim sparse-mode
 line console
@@ -228,23 +266,85 @@ line console
   speed 115200
 line vty
   exec-timeout 0
-boot nxos bootflash:/nxos.9.2.1.bin 
+boot nxos bootflash:/nxos.9.2.2.bin 
 router ospf underlay
-  router-id 10.20.10.2
+  router-id 10.10.10.0
   log-adjacency-changes detail
-router bgp 65200
-  router-id 10.20.10.2
+router bgp 65100
+  router-id 10.10.10.0
   address-family l2vpn evpn
-    advertise-pip
-  neighbor 10.20.10.0
-    remote-as 65200
+  neighbor 10.10.10.1
+    remote-as 65100
+    description n9k-bleaf-1
     update-source loopback0
     address-family ipv4 unicast
       send-community
       send-community extended
+      route-reflector-client
     address-family l2vpn evpn
       send-community
       send-community extended
+      route-reflector-client
+  neighbor 10.10.10.2
+    remote-as 65100
+    description n9k-leaf-1
+    update-source loopback0
+    address-family ipv4 unicast
+      send-community
+      send-community extended
+      route-reflector-client
+    address-family l2vpn evpn
+      send-community
+      send-community extended
+      route-reflector-client
+  neighbor 10.10.10.3
+    remote-as 65100
+    description n9k-leaf-2
+    update-source loopback0
+    address-family ipv4 unicast
+      send-community
+      send-community extended
+      route-reflector-client
+    address-family l2vpn evpn
+      send-community
+      send-community extended
+      route-reflector-client
+  neighbor 10.10.10.4
+    remote-as 65100
+    description n9k-leaf-3
+    update-source loopback0
+    address-family ipv4 unicast
+      send-community
+      send-community extended
+      route-reflector-client
+    address-family l2vpn evpn
+      send-community
+      send-community extended
+      route-reflector-client
+  neighbor 10.10.10.5
+    remote-as 65100
+    description n9k-leaf-4
+    update-source loopback0
+    address-family ipv4 unicast
+      send-community
+      send-community extended
+      route-reflector-client
+    address-family l2vpn evpn
+      send-community
+      send-community extended
+      route-reflector-client
+  neighbor 10.10.10.6
+    remote-as 65100
+    description n9k-bgw-1
+    update-source loopback0
+    address-family ipv4 unicast
+      send-community
+      send-community extended
+      route-reflector-client
+    address-family l2vpn evpn
+      send-community
+      send-community extended
+      route-reflector-client
 personality
   track startup-state
   track data bootflash:/.rpmstore/config
@@ -254,13 +354,13 @@ personality
   track data bootflash:/.rpmstore/thirdparty
   track data bootflash:/home/admin/scripts/
   track data bootflash:/ssh_pub_keys/*.pub
-no system default switchport shutdown
 event manager applet switch_up_trigger
   description "Announce the switch alive"
   event syslog pattern ": System ready$"
   action 10.0 cli run bash sudo /bin/bash /bootflash/home/admin/scripts/switch_alive.sh
   action 12.0 syslog priority informational msg RUN BASH /home/admin/scripts/switch_alive.sh
   action 15.0 event-default
+
 logging server 192.168.100.2 6 use-vrf management facility local6
 logging timestamp milliseconds
 logging level local6 6
@@ -291,7 +391,7 @@ scheduler schedule name dailybck
 
 scheduler schedule name every_minute
   job name switchalive
-  time start 2018:09:21:17:10 repeat 0:0:1
+  time start 2019:02:13:13:09 repeat 0:0:1
 
 scheduler schedule name weeklyclean
   job name personalityclean
